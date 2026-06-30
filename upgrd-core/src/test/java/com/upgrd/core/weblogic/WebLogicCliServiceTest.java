@@ -38,6 +38,12 @@ class WebLogicCliServiceTest {
                 WAR="../app-web/target/app-web-1.0.0-SNAPSHOT.war"
                 mvn -Pproduction-weblogic package
                 """);
+        Files.writeString(weblogic.resolve("wldeploy.properties"), "# WLS_ADMIN_URL=t3://localhost:7001");
+        Files.writeString(weblogic.resolve("wldeploy.sh"), """
+                #!/bin/sh
+                ADMIN_URL="${WLS_ADMIN_URL:-t3://localhost:7001}"
+                java weblogic.Deployer -adminurl "$ADMIN_URL" -deploy
+                """);
         Files.writeString(weblogic.resolve("README.md"), "readme");
 
         Path warDir = output.resolve("migrated/app-web/target");

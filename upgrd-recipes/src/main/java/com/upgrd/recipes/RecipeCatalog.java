@@ -39,6 +39,11 @@ public final class RecipeCatalog {
                 "Generate Struts JSP and validation.xml → Spring MVC hints",
                 true));
         register(new RecipeDefinition(
+                "struts-jsp-to-thymeleaf",
+                "upgrd:StrutsJspToThymeleaf",
+                "Scaffold Thymeleaf templates from Struts JSP views",
+                true));
+        register(new RecipeDefinition(
                 "spring-4-to-6",
                 "upgrd:Spring4To6",
                 "Upgrade Spring MVC 4.x to Spring 6",

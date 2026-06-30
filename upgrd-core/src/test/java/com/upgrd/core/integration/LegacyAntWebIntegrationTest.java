@@ -78,6 +78,9 @@ class LegacyAntWebIntegrationTest {
                         || Files.isRegularFile(output.resolve(
                         "migrated/app-web/src/main/webapp/WEB-INF/validation.xml.struts-view-hints.md")),
                 "Struts JSP/validation should produce view migration hints");
+        assertTrue(Files.isRegularFile(
+                output.resolve("migrated/app-web/src/main/resources/templates/pages/login.html")),
+                "Struts JSP should scaffold Thymeleaf template");
     }
 
     @Test

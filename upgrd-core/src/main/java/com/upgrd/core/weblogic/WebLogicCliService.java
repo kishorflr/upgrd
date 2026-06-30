@@ -21,7 +21,9 @@ public final class WebLogicCliService {
         boolean scaffoldOk = Files.isRegularFile(weblogicDir.resolve("weblogic.xml"));
         notes.add("Scaffold: " + (scaffoldOk ? "present" : "missing — run upgrd apply first"));
 
-        for (String file : List.of("weblogic.xml", "weblogic-application.xml", "deploy.sh", "README.md")) {
+        for (String file : List.of(
+                "weblogic.xml", "weblogic-application.xml", "deploy.sh", "wldeploy.sh",
+                "wldeploy.properties", "README.md")) {
             Path path = weblogicDir.resolve(file);
             notes.add(file + ": " + (Files.isRegularFile(path) ? "present" : "missing"));
         }
@@ -52,6 +54,23 @@ public final class WebLogicCliService {
             }
         }
 
+        Path wldeploy = weblogicDir.resolve("wldeploy.sh");
+        if (!Files.isRegularFile(wldeploy)) {
+            issues.add("Missing deploy/weblogic/wldeploy.sh");
+        } else {
+            String wlScript = Files.readString(wldeploy);
+            if (!wlScript.contains("weblogic.Deployer")) {
+                issues.add("wldeploy.sh should invoke weblogic.Deployer");
+            }
+            if (!wlScript.contains("WLS_ADMIN_URL")) {
+                issues.add("wldeploy.sh should read WLS_ADMIN_URL from environment");
+            }
+        }
+
+        if (!Files.isRegularFile(weblogicDir.resolve("wldeploy.properties"))) {
+            issues.add("Missing deploy/weblogic/wldeploy.properties");
+        }
+
         Path war = warPath(migrated);
         if (!Files.isRegularFile(war)) {
             issues.add("WAR not built — run: mvn -f migrated/pom.xml -Pproduction-weblogic package");
@@ -68,7 +87,7 @@ public final class WebLogicCliService {
         }
 
         if (issues.isEmpty()) {
-            return new WebLogicResult(true, 0, "WebLogic deploy scaffold validated");
+            return new WebLogicResult(true, 0, "WebLogic deploy scaffold validated (wldeploy templates ready)");
         }
         return new WebLogicResult(false, 1, String.join("; ", issues));
     }

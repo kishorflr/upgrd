@@ -70,7 +70,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
-| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints), Spring 4→6, javax→jakarta, raw collections, security fixes |
+| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints, Thymeleaf scaffolds), Spring 4→6, javax→jakarta, raw collections, security fixes |
 | **Recipes (planned)** | Deeper Struts migration, SQL/deserialization OpenRewrite rules |
 
 ### WildFly (local smoke deploy)
@@ -106,7 +106,11 @@ upgrd weblogic status --output ./upgrd-out
 upgrd weblogic validate --output ./upgrd-out
 ```
 
-Validates `deploy/weblogic/` overlays and `deploy.sh` without requiring a local WebLogic instance.
+Validates `deploy/weblogic/` overlays, `wldeploy.sh` / `wldeploy.properties`, and `deploy.sh` without requiring a local WebLogic instance.
+
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs `mvn verify` on every push/PR. When Docker is available (ubuntu-latest), `WildFlyHttpSmokeIntegrationTest` deploys to WildFly and probes HTTP live.
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 

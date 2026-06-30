@@ -200,6 +200,14 @@ public final class UpgradePlanner {
                     "View layer and form validation require manual Spring MVC migration; UpGrd documents tag and rule mappings",
                     fp.evidence().stream().filter(e -> e.contains("Struts") || e.contains(".jsp")).limit(5).toList(),
                     StepMode.AUTOMATED));
+            steps.add(step(
+                    "struts-jsp-to-thymeleaf",
+                    "framework",
+                    "Scaffold Thymeleaf templates from Struts JSP views",
+                    "upgrd:StrutsJspToThymeleaf",
+                    "Thymeleaf is the recommended Spring 6 view layer; UpGrd generates starter templates from Struts JSPs",
+                    fp.evidence().stream().filter(e -> e.contains(".jsp")).limit(5).toList(),
+                    StepMode.AUTOMATED));
         }
 
         if (fp.frameworks().stream().anyMatch(f -> f.startsWith("SPRING_MVC"))) {

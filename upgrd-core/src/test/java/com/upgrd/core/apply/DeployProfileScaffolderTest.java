@@ -28,7 +28,9 @@ class DeployProfileScaffolderTest {
         List<String> weblogic = scaffolder.scaffoldWebLogic(migrated, "weblogic-14c");
 
         assertTrue(wildfly.size() >= 4);
-        assertTrue(weblogic.size() >= 4);
+        assertTrue(weblogic.size() >= 6);
+        assertTrue(Files.isRegularFile(migrated.resolve("deploy/weblogic/wldeploy.sh")));
+        assertTrue(Files.isRegularFile(migrated.resolve("deploy/weblogic/wldeploy.properties")));
         assertTrue(Files.isRegularFile(migrated.resolve("deploy/wildfly/jboss-web.xml")));
         assertTrue(Files.isRegularFile(migrated.resolve("deploy/weblogic/weblogic.xml")));
         assertTrue(Files.isRegularFile(migrated.resolve("deploy/wildfly/docker-compose.yml")));
