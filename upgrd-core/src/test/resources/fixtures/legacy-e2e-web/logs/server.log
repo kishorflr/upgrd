@@ -1,0 +1,7 @@
+2024-01-15 09:12:01 INFO  com.example.UserAction - handling user request
+2024-01-15 09:12:05 INFO  com.example.UserAction - login submitted
+2024-01-15 09:12:06 WARN  com.example.WarOnlyAction - production-only helper invoked
+2024-01-15 09:12:07 ERROR java.lang.RuntimeException: auth failed
+    at com.example.WarOnlyAction.process(WarOnlyAction.java:28)
+    at com.example.UserAction.execute(UserAction.java:17)
+2024-01-15 09:13:22 INFO  com.example.UserAction - redirect to home

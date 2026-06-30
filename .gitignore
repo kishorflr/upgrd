@@ -39,5 +39,6 @@ upgrd-out/
 
 # Logs and secrets
 *.log
+!upgrd-core/src/test/resources/fixtures/**/*.log
 .env
 .env.*
