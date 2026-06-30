@@ -127,6 +127,24 @@ public final class UpgradePlanner {
                 StepMode.AUTOMATED));
 
         steps.add(step(
+                "openrewrite-dry-run",
+                "tooling",
+                "Run OpenRewrite dry-run to preview AST migrations",
+                "upgrd:OpenRewriteDryRun",
+                "Dry-run validates OpenRewrite recipes before modifying sources; gate for optional full apply via `upgrd rewrite run`",
+                List.of("profile=" + profile),
+                StepMode.AUTOMATED));
+
+        steps.add(step(
+                "openrewrite-apply",
+                "tooling",
+                "Apply OpenRewrite AST migrations (after dry-run passes)",
+                "upgrd:OpenRewriteApply",
+                "Advisory — run `upgrd rewrite run` when dry-run is clean; not auto-applied to avoid surprise AST changes",
+                List.of("profile=" + profile),
+                StepMode.ADVISORY));
+
+        steps.add(step(
                 "automation-ready",
                 "tooling",
                 "Embed AI/automation-friendly metadata in migrated application",
@@ -173,6 +191,14 @@ public final class UpgradePlanner {
                     "upgrd:StrutsConfigToSpring",
                     "Struts URL mappings must be recreated in Spring MVC; UpGrd generates a starter config from struts-config.xml",
                     fp.evidence().stream().filter(e -> e.contains("struts-config")).limit(5).toList(),
+                    StepMode.AUTOMATED));
+            steps.add(step(
+                    "struts-view-to-spring",
+                    "framework",
+                    "Generate Struts JSP and validation.xml → Spring MVC hints",
+                    "upgrd:StrutsViewToSpringHints",
+                    "View layer and form validation require manual Spring MVC migration; UpGrd documents tag and rule mappings",
+                    fp.evidence().stream().filter(e -> e.contains("Struts") || e.contains(".jsp")).limit(5).toList(),
                     StepMode.AUTOMATED));
         }
 

@@ -34,6 +34,11 @@ public final class RecipeCatalog {
                 "Migrate Struts config action mappings to Spring MVC hints",
                 true));
         register(new RecipeDefinition(
+                "struts-view-to-spring",
+                "upgrd:StrutsViewToSpringHints",
+                "Generate Struts JSP and validation.xml → Spring MVC hints",
+                true));
+        register(new RecipeDefinition(
                 "spring-4-to-6",
                 "upgrd:Spring4To6",
                 "Upgrade Spring MVC 4.x to Spring 6",
@@ -108,6 +113,16 @@ public final class RecipeCatalog {
                 "upgrd:OpenRewriteScaffold",
                 "Scaffold OpenRewrite YAML for optional AST migrations",
                 true));
+        register(new RecipeDefinition(
+                "openrewrite-dry-run",
+                "upgrd:OpenRewriteDryRun",
+                "Run OpenRewrite dry-run as migration gate",
+                true));
+        register(new RecipeDefinition(
+                "openrewrite-apply",
+                "upgrd:OpenRewriteApply",
+                "Apply OpenRewrite AST migrations (advisory)",
+                false));
         register(new RecipeDefinition(
                 "automation-ready",
                 "upgrd:AutomationReady",

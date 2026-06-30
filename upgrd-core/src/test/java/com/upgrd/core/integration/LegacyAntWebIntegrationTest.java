@@ -73,6 +73,11 @@ class LegacyAntWebIntegrationTest {
         assertTrue(Files.isRegularFile(
                 output.resolve("migrated/app-web/src/main/webapp/WEB-INF/spring-struts-migration.xml")),
                 "Struts config should produce Spring migration hints");
+        assertTrue(
+                Files.isRegularFile(output.resolve("migrated/app-web/src/main/webapp/pages/login.jsp.struts-view-hints.md"))
+                        || Files.isRegularFile(output.resolve(
+                        "migrated/app-web/src/main/webapp/WEB-INF/validation.xml.struts-view-hints.md")),
+                "Struts JSP/validation should produce view migration hints");
     }
 
     @Test

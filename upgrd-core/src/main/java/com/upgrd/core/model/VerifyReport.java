@@ -24,6 +24,10 @@ public record VerifyReport(
             boolean containerRunning,
             boolean warBuilt,
             boolean deployed,
+            boolean httpChecked,
+            boolean httpReachable,
+            int httpStatusCode,
+            String httpUrl,
             List<String> notes) {
     }
 }

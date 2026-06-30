@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 public final class RecipeExecutor {
 
     private static final Set<String> JAVA_EXT = Set.of(".java");
-    private static final Set<String> CONFIG_EXT = Set.of(".java", ".properties", ".xml");
+    private static final Set<String> CONFIG_EXT = Set.of(".java", ".properties", ".xml", ".jsp");
 
     public RecipeRunResult run(FileRecipe recipe, Path sourceRoot) throws IOException {
         return run(recipe, sourceRoot, JAVA_EXT);

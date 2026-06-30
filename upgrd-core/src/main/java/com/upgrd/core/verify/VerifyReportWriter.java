@@ -65,6 +65,10 @@ public final class VerifyReportWriter {
                 smoke.containerRunning(),
                 smoke.warBuilt(),
                 smoke.deployed(),
+                smoke.httpChecked(),
+                smoke.httpReachable(),
+                smoke.httpStatusCode(),
+                smoke.httpUrl(),
                 smoke.notes());
     }
 
@@ -84,6 +88,12 @@ public final class VerifyReportWriter {
                     + ", Docker " + (wildfly.dockerAvailable() ? "available" : "not found"));
             if (wildfly.deployed()) {
                 lines.add("WildFly WAR staged/deployed via upgrd wildfly deploy");
+            }
+            if (wildfly.httpChecked()) {
+                lines.add("WildFly HTTP: "
+                        + (wildfly.httpReachable()
+                        ? "reachable (" + wildfly.httpStatusCode() + ") " + wildfly.httpUrl()
+                        : "not reachable"));
             }
         }
         if (logText != null) {

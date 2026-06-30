@@ -246,7 +246,9 @@ function renderVerify(verify) {
      ['Docker', wf.dockerAvailable ? 'available' : 'not found'],
      ['Container', wf.containerRunning ? 'running' : 'stopped'],
      ['WAR built', wf.warBuilt ? 'yes' : 'no'],
-     ['Deployed', wf.deployed ? 'yes' : 'no']].forEach(([k, v]) => {
+     ['Deployed', wf.deployed ? 'yes' : 'no'],
+     ['HTTP checked', wf.httpChecked ? 'yes' : 'no'],
+     ['HTTP reachable', wf.httpReachable ? 'yes (' + wf.httpStatusCode + ')' : 'no']].forEach(([k, v]) => {
       dl2.appendChild(el('dt', null, k));
       dl2.appendChild(el('dd', null, String(v)));
     });

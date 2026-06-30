@@ -5,6 +5,7 @@ import com.upgrd.recipes.collections.ReplaceRawCollectionsRecipe;
 import com.upgrd.recipes.framework.Spring4To6Recipe;
 import com.upgrd.recipes.framework.StrutsActionToSpringControllerRecipe;
 import com.upgrd.recipes.framework.StrutsConfigToSpringRecipe;
+import com.upgrd.recipes.framework.StrutsViewValidationHintsRecipe;
 import com.upgrd.recipes.language.UpgradeJavaRecipe;
 import com.upgrd.recipes.logging.Log4j1ToSlf4jRecipe;
 import com.upgrd.recipes.security.ExternalizeSecretsRecipe;
@@ -24,6 +25,7 @@ public final class RecipeRegistry {
         register(new Log4j1ToSlf4jRecipe());
         register(new StrutsActionToSpringControllerRecipe());
         register(new StrutsConfigToSpringRecipe());
+        register(new StrutsViewValidationHintsRecipe());
         register(new Spring4To6Recipe());
         register(new JavaxToJakartaRecipe());
         register(new UpgradeJavaRecipe());

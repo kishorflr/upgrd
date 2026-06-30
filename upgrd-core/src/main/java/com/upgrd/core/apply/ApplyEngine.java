@@ -147,6 +147,7 @@ public final class ApplyEngine {
             case "weblogic-adapters" -> runWeblogicAdapters(step, plan, migratedRoot, allChanges, changeCounter);
             case "security-verify" -> runSecurityVerifyScaffold(step, migratedRoot, allChanges, changeCounter);
             case "openrewrite-scaffold" -> runOpenRewriteScaffold(step, plan, migratedRoot, allChanges, changeCounter);
+            case "openrewrite-dry-run" -> runOpenRewriteDryRun(step, outputDir, migratedRoot, allChanges, changeCounter);
             case "test-scaffold" -> runTestScaffold(step, outputDir, appWebRoot, allChanges, changeCounter, testEntryPoints);
             case "automation-ready" -> runAutomationReady(step, plan, migratedRoot, testEntryPoints, allChanges, changeCounter);
             default -> runRecipe(step, appWebRoot, allChanges, changeCounter);
@@ -294,6 +295,48 @@ public final class ApplyEngine {
                 true));
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Scaffolded OpenRewrite config for optional AST migrations");
+    }
+
+    private ApplyStepResult runOpenRewriteDryRun(
+            UpgradeStep step,
+            Path outputDir,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) {
+        Path config = migratedRoot.resolve(".upgrd/openrewrite.yml");
+        if (!java.nio.file.Files.isRegularFile(config)) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "OpenRewrite config missing — run openrewrite-scaffold first");
+        }
+        try {
+            var result = new com.upgrd.core.openrewrite.OpenRewriteRunner().run(outputDir, true);
+            Path gateDir = migratedRoot.resolve(".upgrd/rewrite");
+            java.nio.file.Files.createDirectories(gateDir);
+            java.nio.file.Files.writeString(gateDir.resolve("dry-run.log"), result.log());
+            if (result.success()) {
+                java.nio.file.Files.writeString(gateDir.resolve("dry-run-passed"), result.message());
+                allChanges.add(new ChangeRecord(
+                        step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                        step.recipe(),
+                        step.category(),
+                        ".upgrd/rewrite/dry-run-passed",
+                        List.of(),
+                        "",
+                        "OpenRewrite dry-run passed — safe to run: upgrd rewrite run",
+                        step.reason(),
+                        List.of("dry-run-passed"),
+                        "LOW",
+                        true,
+                        AnalyzeEngine.VERSION,
+                        true));
+                return new ApplyStepResult(step.id(), step.recipe(), "APPLIED", result.message());
+            }
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "OpenRewrite dry-run did not pass (optional) — see .upgrd/rewrite/dry-run.log");
+        } catch (Exception ex) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "OpenRewrite dry-run skipped: " + ex.getMessage());
+        }
     }
 
     private ApplyStepResult runSecurityVerifyScaffold(

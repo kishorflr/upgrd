@@ -37,6 +37,10 @@ public final class VerifyCommand implements Callable<Integer> {
             description = "After successful verify, build and stage WAR for WildFly (implies --wildfly-smoke)")
     private boolean wildflyDeploy;
 
+    @Option(names = "--wildfly-http", defaultValue = "false",
+            description = "After deploy/smoke, probe http://localhost:8080/{context}/ (requires running container)")
+    private boolean wildflyHttp;
+
     @Override
     public Integer call() throws Exception {
         Path migratedPom = output.resolve("migrated/pom.xml");
@@ -72,12 +76,12 @@ public final class VerifyCommand implements Callable<Integer> {
         String commandLine = String.join(" ", command);
 
         WildflySmoke wildflySection = null;
-        boolean runWildfly = wildflySmoke || wildflyDeploy;
+        boolean runWildfly = wildflySmoke || wildflyDeploy || wildflyHttp;
         if (runWildfly && exitCode == 0) {
             var checker = new WildFlySmokeChecker();
             var smoke = wildflyDeploy
-                    ? checker.checkAndDeploy(output, true)
-                    : checker.check(output);
+                    ? checker.checkDeployAndHttp(output, true, wildflyHttp || wildflyDeploy)
+                    : checker.checkDeployAndHttp(output, false, wildflyHttp);
             wildflySection = VerifyReportWriter.toWildflySmoke(smoke);
             System.out.println("  WildFly smoke check:");
             smoke.notes().forEach(note -> System.out.printf("    %s%n", note));

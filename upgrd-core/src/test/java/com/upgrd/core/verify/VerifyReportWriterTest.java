@@ -19,7 +19,8 @@ class VerifyReportWriterTest {
                 "mvn verify",
                 null,
                 "BUILD SUCCESS",
-                new WildflySmoke(true, true, true, false, false, true, List.of("Container running")));
+                new WildflySmoke(true, true, true, false, false, true, true, true, 200,
+                        "http://localhost:8080/app-web/", List.of("Container running")));
 
         assertTrue(report.summaryLines().stream().anyMatch(l -> l.contains("WildFly smoke")));
         assertTrue(report.summaryLines().stream().anyMatch(l -> l.contains("staged/deployed")));

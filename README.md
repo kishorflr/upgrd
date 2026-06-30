@@ -63,13 +63,14 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
-| `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy` |
+| `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
+| `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
 | `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run` supported) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
-| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring, Spring 4→6, javax→jakarta, raw collections, security fixes |
+| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints), Spring 4→6, javax→jakarta, raw collections, security fixes |
 | **Recipes (planned)** | Deeper Struts migration, SQL/deserialization OpenRewrite rules |
 
 ### WildFly (local smoke deploy)
@@ -95,6 +96,17 @@ upgrd rewrite run --output ./upgrd-out
 ```
 
 POM plugin/BOM injection happens at `rewrite run` time so normal `mvn verify` stays lightweight.
+
+`apply` also runs an optional **OpenRewrite dry-run** gate (`.upgrd/rewrite/dry-run-passed`); full AST apply remains advisory via `upgrd rewrite run`.
+
+### WebLogic (production scaffold)
+
+```bash
+upgrd weblogic status --output ./upgrd-out
+upgrd weblogic validate --output ./upgrd-out
+```
+
+Validates `deploy/weblogic/` overlays and `deploy.sh` without requiring a local WebLogic instance.
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 
