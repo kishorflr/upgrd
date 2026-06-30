@@ -168,7 +168,27 @@ footer {
   align-items: center;
   gap: 1rem;
   margin: 1rem 0;
+  flex-wrap: wrap;
 }
+
+.field {
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.field input {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.badge-broken { background: #da363333; color: var(--danger); }
+.badge-healthy { background: #23863633; color: var(--ok); }
 
 .approval-row {
   display: flex;
@@ -198,3 +218,6 @@ footer {
 .badge-api-replacement { background: #388bfd33; color: var(--accent); }
 .badge-api-manual { background: #9e6a0333; color: var(--warn); }
 .badge-api-unsupported { background: #da363333; color: var(--danger); }
+.badge-observed { background: #23863633; color: var(--ok); }
+.badge-unobserved { background: #9e6a0333; color: var(--warn); }
+.badge-kind { background: #388bfd22; color: var(--accent); }

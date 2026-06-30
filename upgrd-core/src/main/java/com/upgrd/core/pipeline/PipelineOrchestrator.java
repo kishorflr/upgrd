@@ -37,6 +37,7 @@ public final class PipelineOrchestrator {
                 request.source(),
                 request.war(),
                 request.logs(),
+                request.logsDir(),
                 request.output(),
                 request.profile()));
         analyzeEngine.writeReport(analysis, request.output());
@@ -139,6 +140,7 @@ public final class PipelineOrchestrator {
             Path source,
             Path war,
             List<Path> logs,
+            Path logsDir,
             Path output,
             ProjectProfile profile,
             String targetJava,

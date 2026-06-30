@@ -4,6 +4,7 @@ import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
 import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.report.ReportWriter;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -26,6 +27,9 @@ public final class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--logs", split = ",", description = "Comma-separated log file paths")
     private List<Path> logs = new ArrayList<>();
 
+    @Option(names = "--logs-dir", description = "Directory of plain/.gz/.zip log archives (collision-safe staging)")
+    private Path logsDir;
+
     @Option(names = "--output", defaultValue = "./upgrd-out", description = "Output directory")
     private Path output;
 
@@ -36,7 +40,8 @@ public final class AnalyzeCommand implements Callable<Integer> {
     public Integer call() throws Exception {
         ProjectProfile profileOverride = parseProfile(profile);
         AnalyzeEngine engine = new AnalyzeEngine();
-        AnalysisReport report = engine.analyze(new AnalysisInput(source, war, logs, output, profileOverride));
+        AnalysisReport report = engine.analyze(new AnalysisInput(
+                source, war, logs, logsDir, output, profileOverride));
         Path reportFile = engine.writeReport(report, output);
 
         var fp = report.discovery().fingerprint();
@@ -55,8 +60,14 @@ public final class AnalyzeCommand implements Callable<Integer> {
                 report.sync().warClassCount(), report.sync().sourceClassCount());
         System.out.printf("  Log hits: %d | Unused WAR classes: %d%n",
                 report.usage().totalHits(), report.usage().unusedInWar().size());
+        var featureUsage = new ReportWriter().readFeatureUsageReport(output);
+        if (featureUsage != null) {
+            System.out.printf("  Feature coverage: %d observed / %d unobserved / %d broken%n",
+                    featureUsage.observedCount(), featureUsage.unobservedCount(), featureUsage.brokenCount());
+        }
         System.out.printf("  Report: %s%n", reportFile.toAbsolutePath());
         System.out.printf("  Design advisory: %s/design-advisory.json%n", output.toAbsolutePath());
+        System.out.printf("  Feature usage: %s/feature-usage-report.json%n", output.toAbsolutePath());
         return 0;
     }
 

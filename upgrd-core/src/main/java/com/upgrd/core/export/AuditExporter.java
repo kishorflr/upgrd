@@ -32,6 +32,8 @@ public final class AuditExporter {
             "security-report.json",
             "anti-pattern-report.json",
             "api-compatibility-report.json",
+            "feature-usage-report.json",
+            "log-source-manifest.json",
             "war-context.json",
             "war-merge-report.json",
             "app-documentation.json");

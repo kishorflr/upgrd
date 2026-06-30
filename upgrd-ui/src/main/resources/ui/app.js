@@ -215,6 +215,9 @@ function renderChangeList(container, ledger, emptyMessage) {
 
 let previewLedgerCache = null;
 let previewFilter = 'ALL';
+let featureUsageCache = null;
+let logManifestCache = null;
+let coverageFilter = 'ALL';
 
 function renderPreviewSummary(preview) {
   const el_ = document.getElementById('preview-summary');
@@ -386,6 +389,155 @@ function renderApiCompatibility(report) {
     }
     el_.appendChild(div);
   });
+}
+
+function renderFeatureUsage(report) {
+  featureUsageCache = report;
+  const summaryEl = document.getElementById('feature-usage-summary');
+  const manifestEl = document.getElementById('log-source-summary');
+  const listEl = document.getElementById('feature-usage-list');
+  summaryEl.innerHTML = '';
+  manifestEl.innerHTML = '';
+  listEl.innerHTML = '';
+  if (!report || !report.features) {
+    summaryEl.innerHTML = '<p class="empty">Configure workspace below and run log analysis, or use <code>upgrd analyze --logs-dir</code></p>';
+    return;
+  }
+  const dl = el('dl', 'grid');
+  [['Total features', report.totalFeatures],
+   ['Healthy (observed, no errors)', report.healthyCount],
+   ['Broken (accessed with errors)', report.brokenCount],
+   ['Unobserved', report.unobservedCount],
+   ['Staged log files', report.logFileCount]].forEach(([k, v]) => {
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v ?? '')));
+  });
+  summaryEl.appendChild(dl);
+  if (report.hitsByLogKind) {
+    const kinds = el('p', 'muted', 'Lines by log kind: ' +
+      Object.entries(report.hitsByLogKind).map(([k, v]) => k + '=' + v).join(', '));
+    summaryEl.appendChild(kinds);
+  }
+  if (report.notes && report.notes.length) {
+    const ul = el('ul');
+    report.notes.forEach(note => ul.appendChild(el('li', null, note)));
+    summaryEl.appendChild(ul);
+  }
+  renderLogManifest(manifestEl, logManifestCache, report.logSources);
+  const features = (report.features || []).filter(f =>
+    coverageFilter === 'ALL' || f.health === coverageFilter);
+  if (!features.length) {
+    listEl.innerHTML = '<p class="empty">No features match filter</p>';
+    return;
+  }
+  features.forEach(feature => {
+    const div = el('div', 'change');
+    const h = el('h3');
+    h.textContent = feature.name + (feature.detail ? ' → ' + feature.detail : '');
+    const healthBadge = feature.health === 'BROKEN' ? 'broken'
+      : feature.health === 'HEALTHY' ? 'healthy' : 'unobserved';
+    h.prepend(badge(feature.health, healthBadge));
+    h.prepend(badge(feature.kind.replace(/_/g, ' '), 'kind'));
+    div.appendChild(h);
+    const meta = el('p', 'muted', [
+      feature.deployPresence,
+      feature.hitCount != null ? feature.hitCount + ' usage hit(s)' : null,
+      feature.errorHitCount ? feature.errorHitCount + ' error hit(s)' : null,
+      feature.observedInLogKinds && feature.observedInLogKinds.length
+        ? 'logs: ' + feature.observedInLogKinds.join(', ') : null
+    ].filter(Boolean).join(' | '));
+    div.appendChild(meta);
+    if (feature.sample) div.appendChild(el('pre', 'diff-block', feature.sample));
+    if (feature.errorSample) {
+      div.appendChild(el('p', 'muted', 'Error sample'));
+      div.appendChild(el('pre', 'diff-block', feature.errorSample));
+    }
+    if (feature.migrationGuidance) div.appendChild(el('div', 'reason', feature.migrationGuidance));
+    listEl.appendChild(div);
+  });
+}
+
+function renderLogManifest(container, manifest, sources) {
+  container.innerHTML = '<h3>Log sources</h3>';
+  const entries = manifest && manifest.entries ? manifest.entries : (sources || []);
+  if (!entries.length) {
+    container.appendChild(el('p', 'empty', 'No staged logs yet'));
+    return;
+  }
+  const ul = el('ul');
+  entries.slice(0, 40).forEach(entry => {
+    const label = entry.stagedFile || entry.originalName || JSON.stringify(entry);
+    const detail = (entry.kind || '') + ' ← ' + (entry.archiveSource || entry.originalName || '');
+    ul.appendChild(el('li', null, label + ' (' + detail + ')'));
+  });
+  if (entries.length > 40) {
+    ul.appendChild(el('li', 'muted', '… and ' + (entries.length - 40) + ' more'));
+  }
+  container.appendChild(ul);
+}
+
+async function loadWorkspace() {
+  const res = await fetch('/api/workspace');
+  if (!res.ok) return;
+  const ws = await res.json();
+  if (ws.sourceRoot) document.getElementById('ws-source').value = ws.sourceRoot;
+  if (ws.warPath) document.getElementById('ws-war').value = ws.warPath;
+  if (ws.logsDir) document.getElementById('ws-logs-dir').value = ws.logsDir;
+}
+
+async function saveWorkspace() {
+  const status = document.getElementById('coverage-action-status');
+  const payload = {
+    sourceRoot: document.getElementById('ws-source').value.trim(),
+    warPath: document.getElementById('ws-war').value.trim(),
+    logsDir: document.getElementById('ws-logs-dir').value.trim()
+  };
+  try {
+    const res = await fetch('/api/workspace', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    status.textContent = res.ok ? 'Workspace saved' : 'Save failed';
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message;
+  }
+}
+
+async function runLogAnalysis() {
+  const status = document.getElementById('coverage-action-status');
+  status.textContent = 'Analyzing logs…';
+  await saveWorkspace();
+  const logsDir = document.getElementById('ws-logs-dir').value.trim();
+  try {
+    const res = await fetch('/api/analyze/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logsDir })
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      status.textContent = body.error || 'Analysis failed';
+      return;
+    }
+    status.textContent = 'Done — ' + body.stagedLogFiles + ' log file(s), ' +
+      body.observedFeatures + ' observed, ' + body.brokenFeatures + ' broken';
+    await refreshReports();
+  } catch (e) {
+    status.textContent = 'Analysis failed: ' + e.message;
+  }
+}
+
+async function refreshReports() {
+  const [analysis, featureUsage, logManifest] = await Promise.all([
+    fetchReport('analysis-report.json'),
+    fetchReport('feature-usage-report.json'),
+    fetchReport('log-source-manifest.json')
+  ]);
+  logManifestCache = logManifest;
+  renderDashboard(analysis);
+  renderFeatureUsage(featureUsage);
+  renderUsage(analysis);
 }
 
 function renderDesign(report) {
@@ -602,10 +754,22 @@ document.querySelectorAll('#review-filters .filter').forEach(btn => {
   });
 });
 
+document.querySelectorAll('#coverage-filters .filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#coverage-filters .filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    coverageFilter = btn.dataset.health;
+    renderFeatureUsage(featureUsageCache);
+  });
+});
+
+document.getElementById('save-workspace').addEventListener('click', saveWorkspace);
+document.getElementById('run-log-analysis').addEventListener('click', runLogAnalysis);
+
 document.getElementById('save-approval').addEventListener('click', saveApproval);
 
 async function init() {
-  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, warMerge, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
+  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, featureUsage, logManifest, warMerge, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
@@ -613,6 +777,8 @@ async function init() {
     fetchReport('change-ledger-preview.json'),
     fetchReport('approved-plan.json'),
     fetchReport('api-compatibility-report.json'),
+    fetchReport('feature-usage-report.json'),
+    fetchReport('log-source-manifest.json'),
     fetchReport('war-merge-report.json'),
     fetchReport('design-advisory.json'),
     fetchReport('anti-pattern-report.json'),
@@ -621,6 +787,7 @@ async function init() {
     fetchReport('apply-report.json'),
     fetchReport('app-documentation.json')
   ]);
+  logManifestCache = logManifest;
   renderDashboard(analysis);
   renderWarMerge(warMerge);
   renderPlan(plan);
@@ -629,6 +796,7 @@ async function init() {
   renderPreviewChanges(previewLedger);
   renderApproval(plan, approval);
   renderApiCompatibility(apiCompat);
+  renderFeatureUsage(featureUsage);
   renderDesign(design);
   renderAntiPatterns(antiPatterns);
   renderUsage(analysis);
@@ -636,6 +804,7 @@ async function init() {
   renderVerify(verify);
   renderDeploy(applyReport, verify);
   renderDocumentation(documentation);
+  loadWorkspace();
 }
 
 init();

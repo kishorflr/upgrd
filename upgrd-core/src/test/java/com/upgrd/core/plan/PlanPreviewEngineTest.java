@@ -54,7 +54,7 @@ class PlanPreviewEngineTest {
 
         var result = new com.upgrd.core.pipeline.PipelineOrchestrator().run(
                 new com.upgrd.core.pipeline.PipelineOrchestrator.PipelineRequest(
-                        source, null, List.of(), output, ProjectProfile.LEGACY_BACKEND,
+                        source, null, List.of(), null, output, ProjectProfile.LEGACY_BACKEND,
                         "java21", "weblogic-14c", false, false, false, false,
                         false, false, false, true, false, false, null, false));
 

@@ -75,6 +75,8 @@ upgrd pipeline run \
 | `analysis-report.json` | analyze | Profile, fingerprint, summary |
 | `sync-report.json` | analyze | WAR vs source drift + severity |
 | `usage-report.json` | analyze | Log hot paths |
+| `feature-usage-report.json` | analyze | HEALTHY / BROKEN / UNOBSERVED features for regression planning |
+| `log-source-manifest.json` | analyze | Staged log files after .zip/.gz expansion with unique names |
 | `api-compatibility-report.json` | analyze | Unsupported APIs → plan steps |
 | `war-context.json` | analyze | WAR path for apply |
 | `upgrade-preview-report.json` | plan preview | Before/after file diffs |
@@ -99,6 +101,28 @@ upgrd export --output ./upgrd-out --html --pdf
 ```
 
 Bundle includes sync, API compatibility, security, and change ledger for stakeholder review.
+
+## Log archives (`.zip` / `.gz`)
+
+```bash
+upgrd analyze --source ./legacy-app --war ./legacy-app.war --logs-dir ./log-archives --output ./upgrd-out
+```
+
+Archives expand into `.upgrd/log-staging/` with unique names (`access__week1__001.log`, …) so repeated `access.log` / `server.log` basenames do not overwrite each other. Access, server, out, and application logs are analyzed together.
+
+**UI workflow:**
+
+```bash
+upgrd run --serve-ui --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out
+```
+
+Open **Coverage** → set source, WAR, logs directory → **Run log analysis**.
+
+| Health | Meaning |
+|--------|---------|
+| HEALTHY | Seen in logs, no errors |
+| BROKEN | Accessed with HTTP 4xx/5xx or server/application errors |
+| UNOBSERVED | Not in log window — still migrated by default |
 
 ## Troubleshooting
 

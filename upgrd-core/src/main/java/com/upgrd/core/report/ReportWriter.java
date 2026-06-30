@@ -65,6 +65,23 @@ public final class ReportWriter {
         return null;
     }
 
+    public Path writeFeatureUsageReport(
+            com.upgrd.core.model.FeatureUsageReport report,
+            Path outputDir) throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("feature-usage-report.json");
+        mapper.writeValue(file.toFile(), report);
+        return file;
+    }
+
+    public com.upgrd.core.model.FeatureUsageReport readFeatureUsageReport(Path outputDir) throws IOException {
+        Path file = outputDir.resolve("feature-usage-report.json");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        return mapper.readValue(file.toFile(), com.upgrd.core.model.FeatureUsageReport.class);
+    }
+
     public Path writeSecurityReport(SecurityReport report, Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
         Path file = outputDir.resolve("security-report.json");

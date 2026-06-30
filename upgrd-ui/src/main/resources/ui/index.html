@@ -17,6 +17,7 @@
     <button class="tab" data-panel="plan">Plan</button>
     <button class="tab" data-panel="review">Review</button>
     <button class="tab" data-panel="compatibility">API</button>
+    <button class="tab" data-panel="coverage">Coverage</button>
     <button class="tab" data-panel="changes">Changes</button>
     <button class="tab" data-panel="design">Design</button>
     <button class="tab" data-panel="antipatterns">Anti-patterns</button>
@@ -70,6 +71,31 @@
       <h2>API Compatibility Catalog</h2>
       <p class="muted">Unsupported → replacement → manual rewrites linked to source hits (M18).</p>
       <div id="api-compatibility" class="card">Loading…</div>
+    </section>
+
+    <section id="coverage" class="panel">
+      <h2>Feature Usage Coverage</h2>
+      <p class="muted">Analyze access, server, out, and application logs together. Supports folders of .log, .gz, and .zip archives.</p>
+      <div id="coverage-workspace" class="card">
+        <h3>Workspace</h3>
+        <label class="field">Source root <input id="ws-source" type="text" placeholder="/path/to/legacy-app"></label>
+        <label class="field">WAR file <input id="ws-war" type="text" placeholder="/path/to/legacy-app.war"></label>
+        <label class="field">Logs directory <input id="ws-logs-dir" type="text" placeholder="/path/to/log-archives"></label>
+        <div class="approval-actions">
+          <button id="save-workspace" class="filter" type="button">Save workspace</button>
+          <button id="run-log-analysis" class="filter active" type="button">Run log analysis</button>
+          <span id="coverage-action-status" class="muted"></span>
+        </div>
+      </div>
+      <div class="filter-bar" id="coverage-filters">
+        <button class="filter active" data-health="ALL">All</button>
+        <button class="filter" data-health="HEALTHY">Healthy</button>
+        <button class="filter" data-health="BROKEN">Broken</button>
+        <button class="filter" data-health="UNOBSERVED">Unobserved</button>
+      </div>
+      <div id="feature-usage-summary" class="card">Loading…</div>
+      <div id="log-source-summary" class="card">Loading…</div>
+      <div id="feature-usage-list" class="card">Loading…</div>
     </section>
 
     <section id="changes" class="panel">

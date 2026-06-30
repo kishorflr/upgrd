@@ -109,7 +109,8 @@ public final class ApplicationDocumenter {
                 2. Review change-ledger.json after apply for exact diffs and reasoning
                 3. Respect ADVISORY steps in upgrade-plan.json — do not auto-apply structural refactors
                 4. Hot paths in usage-report.json indicate production-critical code paths
-                5. All reports are edge-local JSON — no cloud dependency
+                5. feature-usage-report.json lists OBSERVED vs UNOBSERVED features for regression planning
+                6. All reports are edge-local JSON — no cloud dependency
                 """,
                 reportIndex()));
 
@@ -202,6 +203,7 @@ public final class ApplicationDocumenter {
                 "change-ledger.json",
                 "design-advisory.json",
                 "usage-report.json",
+                "feature-usage-report.json",
                 "apply-report.json");
     }
 }

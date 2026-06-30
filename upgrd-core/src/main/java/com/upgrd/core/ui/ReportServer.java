@@ -3,7 +3,11 @@ package com.upgrd.core.ui;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.upgrd.core.model.AnalyzeWorkspace;
 import com.upgrd.core.model.ApprovedPlan;
+import com.upgrd.core.ui.UiAnalyzeService;
+import com.upgrd.core.ui.WorkspaceStore;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -40,6 +44,8 @@ public final class ReportServer implements AutoCloseable {
             "upgrade-preview-report.json",
             "change-ledger-preview.json",
             "api-compatibility-report.json",
+            "feature-usage-report.json",
+            "log-source-manifest.json",
             "war-context.json",
             "war-merge-report.json");
 
@@ -49,6 +55,8 @@ public final class ReportServer implements AutoCloseable {
     private final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
+    private final UiAnalyzeService uiAnalyzeService = new UiAnalyzeService();
+    private final WorkspaceStore workspaceStore = new WorkspaceStore();
 
     public ReportServer(Path outputDir, int port) throws IOException {
         this.outputDir = outputDir.toAbsolutePath().normalize();
@@ -57,6 +65,8 @@ public final class ReportServer implements AutoCloseable {
         server.createContext("/", this::handleRoot);
         server.createContext("/api/reports/", this::handleReport);
         server.createContext("/api/approval", this::handleApproval);
+        server.createContext("/api/workspace", this::handleWorkspace);
+        server.createContext("/api/analyze/logs", this::handleAnalyzeLogs);
         server.createContext("/ui/", this::handleStatic);
         server.setExecutor(Executors.newFixedThreadPool(2));
     }
@@ -126,6 +136,64 @@ public final class ReportServer implements AutoCloseable {
             return;
         }
         exchange.sendResponseHeaders(405, -1);
+    }
+
+    private void handleWorkspace(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if ("GET".equals(exchange.getRequestMethod())) {
+            AnalyzeWorkspace workspace = workspaceStore.load(outputDir);
+            if (workspace == null) {
+                workspace = new AnalyzeWorkspace(null, null, outputDir.toString(), null);
+            }
+            writeJson(exchange, 200, workspace);
+            return;
+        }
+        if ("POST".equals(exchange.getRequestMethod())) {
+            AnalyzeWorkspace workspace = mapper.readValue(exchange.getRequestBody(), AnalyzeWorkspace.class);
+            AnalyzeWorkspace saved = new AnalyzeWorkspace(
+                    workspace.sourceRoot(),
+                    workspace.warPath(),
+                    outputDir.toAbsolutePath().normalize().toString(),
+                    workspace.logsDir());
+            workspaceStore.save(outputDir, saved);
+            writeJson(exchange, 200, saved);
+            return;
+        }
+        exchange.sendResponseHeaders(405, -1);
+    }
+
+    private void handleAnalyzeLogs(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+        JsonNode body = mapper.readTree(exchange.getRequestBody());
+        String logsDir = body.hasNonNull("logsDir") ? body.get("logsDir").asText() : null;
+        try {
+            var result = uiAnalyzeService.analyzeLogs(outputDir, logsDir);
+            writeJson(exchange, 200, result);
+        } catch (Exception ex) {
+            sendJsonError(exchange, 400, ex.getMessage());
+        }
+    }
+
+    private void writeJson(HttpExchange exchange, int code, Object value) throws IOException {
+        byte[] body = mapper.writeValueAsBytes(value);
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        addCors(exchange);
+        exchange.sendResponseHeaders(code, body.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(body);
+        }
     }
 
     private void handleReport(HttpExchange exchange) throws IOException {

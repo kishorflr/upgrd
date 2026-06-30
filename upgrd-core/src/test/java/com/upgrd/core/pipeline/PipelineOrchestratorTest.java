@@ -28,6 +28,7 @@ class PipelineOrchestratorTest {
                 source,
                 null,
                 List.of(),
+                null,
                 output,
                 ProjectProfile.LEGACY_BACKEND,
                 "java21",

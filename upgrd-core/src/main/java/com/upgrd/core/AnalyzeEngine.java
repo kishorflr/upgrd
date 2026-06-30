@@ -9,6 +9,8 @@ import com.upgrd.core.design.DesignAdvisoryAnalyzer;
 import com.upgrd.core.discovery.ProjectDiscoveryService;
 import com.upgrd.core.documentation.ApplicationDocumenter;
 import com.upgrd.core.documentation.DocumentationWriter;
+import com.upgrd.core.logs.LogInputResolver;
+import com.upgrd.core.logs.LogInputResolver.ResolvedLogInput;
 import com.upgrd.core.logs.LogUsageAnalyzer;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
@@ -19,6 +21,7 @@ import com.upgrd.core.report.ReportWriter;
 import com.upgrd.core.security.SecurityAnalyzer;
 import com.upgrd.core.source.SourceInspector;
 import com.upgrd.core.sync.SyncAnalyzer;
+import com.upgrd.core.usage.FeatureUsageAnalyzer;
 import com.upgrd.core.war.WarInspector;
 
 import java.io.IOException;
@@ -43,6 +46,8 @@ public final class AnalyzeEngine {
     private final SourceInspector sourceInspector = new SourceInspector();
     private final SyncAnalyzer syncAnalyzer = new SyncAnalyzer();
     private final LogUsageAnalyzer logUsageAnalyzer = new LogUsageAnalyzer();
+    private final LogInputResolver logInputResolver = new LogInputResolver();
+    private final FeatureUsageAnalyzer featureUsageAnalyzer = new FeatureUsageAnalyzer();
     private final ReportWriter reportWriter = new ReportWriter();
     private final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -61,7 +66,12 @@ public final class AnalyzeEngine {
         Set<String> sourceClasses = sourceInspector.listSourceClasses(input.sourceRoot(), discovery.sourceRoots());
         Set<String> sourceLibs = sourceInspector.listLibraryJars(input.sourceRoot());
         SyncReport sync = syncAnalyzer.compare(warClasses, sourceClasses, warLibs, sourceLibs);
-        UsageReport usage = logUsageAnalyzer.analyze(input.logFiles(), warClasses);
+        ResolvedLogInput resolvedLogs = logInputResolver.resolve(input);
+        UsageReport usage = logUsageAnalyzer.analyze(
+                resolvedLogs.logFiles(), warClasses,
+                resolvedLogs.manifest() != null ? resolvedLogs.manifest().entries() : List.of());
+        var featureUsage = featureUsageAnalyzer.analyze(
+                input.sourceRoot(), discovery, sync, usage, warClasses, sourceClasses);
         var designAdvisory = designAdvisoryAnalyzer.analyze(
                 input.sourceRoot(),
                 discovery.sourceRoots(),
@@ -75,7 +85,11 @@ public final class AnalyzeEngine {
         AnalysisReport report = new AnalysisReport(
                 VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
 
-        writeReport(report, security, antiPatterns, apiCompatibility, input, input.sourceRoot(), input.outputDir());
+        Path outputDir = input.outputDir();
+        writeReport(report, security, antiPatterns, apiCompatibility, featureUsage, input, input.sourceRoot(), outputDir);
+        if (resolvedLogs.manifest() != null) {
+            mapper.writeValue(outputDir.resolve("log-source-manifest.json").toFile(), resolvedLogs.manifest());
+        }
         return report;
     }
 
@@ -92,6 +106,7 @@ public final class AnalyzeEngine {
             com.upgrd.core.model.SecurityReport security,
             com.upgrd.core.model.AntiPatternReport antiPatterns,
             com.upgrd.core.model.ApiCompatibilityReport apiCompatibility,
+            com.upgrd.core.model.FeatureUsageReport featureUsage,
             AnalysisInput input,
             Path sourceRoot,
             Path outputDir) throws IOException {
@@ -99,6 +114,7 @@ public final class AnalyzeEngine {
         reportWriter.writeSecurityReport(security, outputDir);
         reportWriter.writeAntiPatternReport(antiPatterns, outputDir);
         reportWriter.writeApiCompatibilityReport(apiCompatibility, outputDir);
+        reportWriter.writeFeatureUsageReport(featureUsage, outputDir);
         mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
         mapper.writeValue(outputDir.resolve("sync-report.json").toFile(), report.sync());
         if (input.warFile() != null) {
@@ -118,9 +134,14 @@ public final class AnalyzeEngine {
         if (input.warFile() != null && !warInspector.isWar(input.warFile())) {
             throw new IOException("WAR file not found or invalid: " + input.warFile());
         }
-        for (Path logFile : input.logFiles()) {
-            if (!Files.isRegularFile(logFile)) {
-                throw new IOException("Log file not found: " + logFile);
+        if (input.logsDir() != null && !Files.isDirectory(input.logsDir())) {
+            throw new IOException("Logs directory not found: " + input.logsDir());
+        }
+        if (input.logFiles() != null) {
+            for (Path logFile : input.logFiles()) {
+                if (logFile != null && !Files.isRegularFile(logFile)) {
+                    throw new IOException("Log file not found: " + logFile);
+                }
             }
         }
     }

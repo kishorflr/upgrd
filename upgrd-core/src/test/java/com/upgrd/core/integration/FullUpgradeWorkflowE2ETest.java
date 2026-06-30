@@ -68,6 +68,7 @@ class FullUpgradeWorkflowE2ETest {
         ReportWriter reportWriter = new ReportWriter();
         assertTrue(Files.isRegularFile(output.resolve("sync-report.json")));
         assertTrue(Files.isRegularFile(output.resolve("usage-report.json")));
+        assertTrue(Files.isRegularFile(output.resolve("feature-usage-report.json")));
         assertTrue(Files.isRegularFile(output.resolve("api-compatibility-report.json")));
         assertTrue(Files.isRegularFile(output.resolve("war-context.json")));
 
@@ -128,7 +129,7 @@ class FullUpgradeWorkflowE2ETest {
 
         PipelineOrchestrator orchestrator = new PipelineOrchestrator();
         var stopped = orchestrator.run(new PipelineOrchestrator.PipelineRequest(
-                source, war, logs, output, ProjectProfile.LEGACY_WEB,
+                source, war, logs, null, output, ProjectProfile.LEGACY_WEB,
                 "java21", "weblogic-14c",
                 false, false, false, false, false, false, false, true,
                 false, false, null, false));
@@ -151,7 +152,7 @@ class FullUpgradeWorkflowE2ETest {
 
         PipelineOrchestrator orchestrator = new PipelineOrchestrator();
         var result = orchestrator.run(new PipelineOrchestrator.PipelineRequest(
-                source, war, logs, output, ProjectProfile.LEGACY_WEB,
+                source, war, logs, null, output, ProjectProfile.LEGACY_WEB,
                 "java21", "weblogic-14c",
                 true, true, false, false, false, false, false, true,
                 false, false, null, false));

@@ -4,7 +4,9 @@ import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.openrewrite.OpenRewriteRunner;
 import com.upgrd.core.pipeline.PipelineOrchestrator;
 import com.upgrd.core.pipeline.PipelineOrchestrator.PipelineRequest;
+import com.upgrd.core.model.AnalyzeWorkspace;
 import com.upgrd.core.ui.ReportServer;
+import com.upgrd.core.ui.WorkspaceStore;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -26,6 +28,9 @@ public final class PipelineRunCommand implements Callable<Integer> {
 
     @Option(names = "--logs", split = ",", description = "Comma-separated log file paths")
     private List<Path> logs = new ArrayList<>();
+
+    @Option(names = "--logs-dir", description = "Directory of plain/.gz/.zip log archives")
+    private Path logsDir;
 
     @Option(names = "--output", defaultValue = "./upgrd-out", description = "Output directory")
     private Path output;
@@ -104,6 +109,7 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 source,
                 war,
                 logs,
+                logsDir,
                 output,
                 parseProfile(profile),
                 target,
@@ -147,6 +153,11 @@ public final class PipelineRunCommand implements Callable<Integer> {
         }
 
         if (serveUi) {
+            new WorkspaceStore().save(output, new AnalyzeWorkspace(
+                    source.toAbsolutePath().normalize().toString(),
+                    war != null ? war.toAbsolutePath().normalize().toString() : null,
+                    output.toAbsolutePath().normalize().toString(),
+                    logsDir != null ? logsDir.toAbsolutePath().normalize().toString() : null));
             try (ReportServer server = new ReportServer(output, port)) {
                 server.start();
                 System.out.printf("UpGrd audit dashboard running at %s%n", server.baseUrl());
