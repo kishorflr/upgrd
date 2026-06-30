@@ -17,12 +17,12 @@ public final class RecipeCatalog {
                 "convert-maven",
                 "upgrd:ConvertToMaven",
                 "Convert project layout to Maven multi-module structure",
-                false));
+                true));
         register(new RecipeDefinition(
                 "migrate-log4j1",
                 "upgrd:Log4j1ToSlf4j",
                 "Migrate log4j 1.x to SLF4J",
-                false));
+                true));
         register(new RecipeDefinition(
                 "struts-to-spring-mvc",
                 "upgrd:StrutsActionToSpringController",

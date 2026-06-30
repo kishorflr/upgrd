@@ -14,7 +14,7 @@ import java.util.concurrent.Callable;
 
 @Command(
         name = "apply",
-        description = "Apply an upgrade plan (M2 scaffold: layout + apply report)")
+        description = "Apply an upgrade plan (source migration + recipe execution)")
 public final class ApplyCommand implements Callable<Integer> {
 
     @Option(names = "--plan", required = true, description = "Path to upgrade-plan.json")
@@ -36,7 +36,7 @@ public final class ApplyCommand implements Callable<Integer> {
         UpgradePlan upgradePlan = engine.loadPlan(plan);
         RecipeCatalog catalog = new RecipeCatalog();
 
-        System.out.printf("UpGrd apply (M2 scaffold).%n");
+        System.out.printf("UpGrd apply.%n");
         System.out.printf("  Plan steps: %d | dry-run: %s%n", upgradePlan.steps().size(), upgradePlan.dryRun());
         upgradePlan.steps().forEach(step -> {
             String status = catalog.findByStepId(step.id())

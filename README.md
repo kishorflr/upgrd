@@ -62,10 +62,10 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 |---------|--------|
 | `analyze` | Profile detection, technology fingerprint, design advisory |
 | `plan upgrade --dry-run` | Profile-aware steps with per-step reasoning + change ledger preview |
-| `apply` | Scaffold: migrated/ layout, change ledger, apply-report.json |
+| `apply` | Source copy to Maven layout, Log4j1→SLF4J, change ledger with diffs |
 | `run --serve-ui` | Local audit dashboard on localhost (reads JSON reports only) |
-| `upgrd-recipes` | OpenRewrite recipe catalog (execution pending) |
-| Maven conversion + Java 21 rewrite | Planned |
+| `upgrd-recipes` | FileRecipe catalog (OpenRewrite adapter planned) |
+| Java 21 rewrite + Struts/Spring recipes | Planned |
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 

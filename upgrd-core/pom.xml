@@ -17,6 +17,10 @@
   <dependencies>
     <dependency>
       <groupId>com.upgrd</groupId>
+      <artifactId>upgrd-recipes</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.upgrd</groupId>
       <artifactId>upgrd-ui</artifactId>
     </dependency>
     <dependency>
