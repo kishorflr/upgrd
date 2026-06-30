@@ -29,6 +29,11 @@ public final class RecipeCatalog {
                 "Migrate Struts actions to Spring MVC controllers",
                 true));
         register(new RecipeDefinition(
+                "struts-config-to-spring",
+                "upgrd:StrutsConfigToSpring",
+                "Migrate Struts config action mappings to Spring MVC hints",
+                true));
+        register(new RecipeDefinition(
                 "spring-4-to-6",
                 "upgrd:Spring4To6",
                 "Upgrade Spring MVC 4.x to Spring 6",

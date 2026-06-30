@@ -48,7 +48,9 @@ public final class AnalyzeEngine {
         validate(input);
 
         ProjectDiscovery discovery = discoveryService.discover(input.sourceRoot(), input.profileOverride());
-        Set<String> warClasses = warInspector.listApplicationClasses(input.warFile());
+        Set<String> warClasses = input.warFile() != null
+                ? warInspector.listApplicationClasses(input.warFile())
+                : Set.of();
         Set<String> sourceClasses = sourceInspector.listSourceClasses(input.sourceRoot(), discovery.sourceRoots());
         SyncReport sync = syncAnalyzer.compare(warClasses, sourceClasses);
         UsageReport usage = logUsageAnalyzer.analyze(input.logFiles(), warClasses);
@@ -91,7 +93,7 @@ public final class AnalyzeEngine {
         if (!Files.isDirectory(input.sourceRoot())) {
             throw new IOException("Source root not found: " + input.sourceRoot());
         }
-        if (!warInspector.isWar(input.warFile())) {
+        if (input.warFile() != null && !warInspector.isWar(input.warFile())) {
             throw new IOException("WAR file not found or invalid: " + input.warFile());
         }
         for (Path logFile : input.logFiles()) {

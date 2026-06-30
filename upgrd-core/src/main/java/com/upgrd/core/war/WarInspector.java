@@ -29,6 +29,9 @@ public final class WarInspector {
     }
 
     public boolean isWar(Path path) {
+        if (path == null) {
+            return false;
+        }
         if (!path.toString().endsWith(".war") || !java.nio.file.Files.isRegularFile(path)) {
             return false;
         }

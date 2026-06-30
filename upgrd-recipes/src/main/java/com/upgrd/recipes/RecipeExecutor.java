@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 public final class RecipeExecutor {
 
     private static final Set<String> JAVA_EXT = Set.of(".java");
-    private static final Set<String> CONFIG_EXT = Set.of(".java", ".properties");
+    private static final Set<String> CONFIG_EXT = Set.of(".java", ".properties", ".xml");
 
     public RecipeRunResult run(FileRecipe recipe, Path sourceRoot) throws IOException {
         return run(recipe, sourceRoot, JAVA_EXT);
@@ -37,7 +37,11 @@ public final class RecipeExecutor {
             String relative = root.relativize(file).toString().replace('\\', '/');
             recipe.transform(relative, before).ifPresent(change -> {
                 try {
-                    Files.writeString(file, change.after(), StandardCharsets.UTF_8);
+                    Path target = change.relativePath().equals(relative)
+                            ? file
+                            : root.resolve(change.relativePath());
+                    Files.createDirectories(target.getParent());
+                    Files.writeString(target, change.after(), StandardCharsets.UTF_8);
                     changes.add(change);
                 } catch (IOException ex) {
                     throw new IllegalStateException("Failed to write " + file, ex);

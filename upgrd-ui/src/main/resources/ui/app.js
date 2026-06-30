@@ -101,6 +101,14 @@ function renderChanges(ledger) {
     div.appendChild(h);
     div.appendChild(el('p', 'muted', change.ruleId));
     div.appendChild(el('div', 'reason', change.reason || ''));
+    if (change.before && change.before.trim() && change.before !== '(generated smoke test)') {
+      const diff = el('div', 'diff');
+      diff.appendChild(el('p', 'muted', 'Before'));
+      diff.appendChild(el('pre', 'diff-block', change.before));
+      diff.appendChild(el('p', 'muted', 'After'));
+      diff.appendChild(el('pre', 'diff-block after', change.after || ''));
+      div.appendChild(diff);
+    }
     if (change.evidence && change.evidence.length) {
       const ul = el('ul', 'evidence');
       change.evidence.forEach(e => ul.appendChild(el('li', null, e)));
@@ -177,6 +185,32 @@ function renderSecurity(security) {
   });
 }
 
+function renderVerify(verify) {
+  const el_ = document.getElementById('verify-report');
+  el_.innerHTML = '';
+  if (!verify) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd verify --output ./upgrd-out</code></p>';
+    return;
+  }
+  const status = verify.passed ? badge('passed', 'automated') : badge('failed', 'risk-high');
+  const h = el('h3');
+  h.textContent = verify.passed ? 'Verification passed' : 'Verification failed';
+  h.prepend(status);
+  el_.appendChild(h);
+  const dl = el('dl', 'grid');
+  [['Exit code', verify.exitCode], ['Security scan', verify.securityScan ? 'yes' : 'no'],
+   ['Command', verify.command]].forEach(([k, v]) => {
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v ?? '')));
+  });
+  el_.appendChild(dl);
+  if (verify.summaryLines && verify.summaryLines.length) {
+    const ul = el('ul');
+    verify.summaryLines.forEach(line => ul.appendChild(el('li', null, line)));
+    el_.appendChild(ul);
+  }
+}
+
 function renderDocumentation(doc) {
   const el_ = document.getElementById('app-documentation');
   el_.innerHTML = '';
@@ -204,12 +238,13 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 async function init() {
-  const [analysis, plan, ledger, design, security, documentation] = await Promise.all([
+  const [analysis, plan, ledger, design, security, verify, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
     fetchReport('design-advisory.json'),
     fetchReport('security-report.json'),
+    fetchReport('verify-report.json'),
     fetchReport('app-documentation.json')
   ]);
   renderDashboard(analysis);
@@ -218,6 +253,7 @@ async function init() {
   renderDesign(design);
   renderUsage(analysis);
   renderSecurity(security);
+  renderVerify(verify);
   renderDocumentation(documentation);
 }
 

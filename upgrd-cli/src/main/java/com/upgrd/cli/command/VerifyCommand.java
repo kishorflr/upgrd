@@ -1,6 +1,7 @@
 package com.upgrd.cli.command;
 
 import com.upgrd.core.failure.FailureReportService;
+import com.upgrd.core.verify.VerifyReportWriter;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -58,10 +59,16 @@ public final class VerifyCommand implements Callable<Integer> {
         String log = new String(process.getInputStream().readAllBytes());
         Files.writeString(logFile, log);
         int exitCode = process.waitFor();
+        String commandLine = String.join(" ", command);
+
+        var verifyReport = new VerifyReportWriter().build(
+                exitCode == 0, exitCode, securityScan, commandLine, logFile, log);
+        Path verifyReportPath = new VerifyReportWriter().write(verifyReport, output);
 
         if (exitCode == 0) {
             System.out.println(log);
             System.out.println("  Verify: PASSED");
+            System.out.printf("  Report: %s%n", verifyReportPath);
         } else {
             System.out.println(log);
             System.out.printf("  Verify: FAILED (exit %d)%n", exitCode);

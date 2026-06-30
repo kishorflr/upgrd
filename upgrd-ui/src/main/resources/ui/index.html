@@ -18,6 +18,7 @@
     <button class="tab" data-panel="changes">Changes</button>
     <button class="tab" data-panel="design">Design</button>
     <button class="tab" data-panel="security">Security</button>
+    <button class="tab" data-panel="verify">Verify</button>
     <button class="tab" data-panel="documentation">Documentation</button>
   </nav>
 
@@ -56,6 +57,11 @@
       <div id="security-report" class="card">Loading…</div>
     </section>
 
+    <section id="verify" class="panel">
+      <h2>Verify</h2>
+      <div id="verify-report" class="card">Loading…</div>
+    </section>
+
     <section id="documentation" class="panel">
       <h2>Application Documentation</h2>
       <p class="muted">Agent-readable knowledge base generated during analyze and apply.</p>
@@ -66,6 +72,7 @@
   <footer>
     <p>Reports served from local <code>--output</code> directory only.</p>
     <p class="muted">After <code>upgrd verify</code>, failure reports appear in <code>migrated/.upgrd/failure-report/</code>.</p>
+    <p class="muted">Run <code>upgrd export --output ./upgrd-out</code> to bundle reports into <code>audit-export.json</code>.</p>
   </footer>
 
   <script src="/ui/app.js"></script>

@@ -65,7 +65,8 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
 | `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify` (SpotBugs + OWASP) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
-| `run --serve-ui` | Local audit dashboard on localhost (reads JSON reports only) |
+| `export` | Bundle all audit JSON reports into `audit-export.json` |
+| `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring, Spring 4→6, javax→jakarta, raw collections, security fixes |
 | **Recipes (planned)** | Full OpenRewrite AST engine, deeper Struts migration, SQL/deserialization rules |
 

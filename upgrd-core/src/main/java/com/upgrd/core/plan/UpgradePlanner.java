@@ -157,6 +157,14 @@ public final class UpgradePlanner {
                     "Struts is unmaintained; unify on Spring MVC for a single web framework on Java " + targetJava,
                     fp.evidence().stream().filter(e -> e.contains("Struts")).limit(5).toList(),
                     StepMode.AUTOMATED));
+            steps.add(step(
+                    "struts-config-to-spring",
+                    "framework",
+                    "Convert struts-config.xml action mappings to Spring MVC hints",
+                    "upgrd:StrutsConfigToSpring",
+                    "Struts URL mappings must be recreated in Spring MVC; UpGrd generates a starter config from struts-config.xml",
+                    fp.evidence().stream().filter(e -> e.contains("struts-config")).limit(5).toList(),
+                    StepMode.AUTOMATED));
         }
 
         if (fp.frameworks().stream().anyMatch(f -> f.startsWith("SPRING_MVC"))) {

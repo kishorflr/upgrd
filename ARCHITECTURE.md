@@ -203,5 +203,5 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M2.5** | Framework fingerprint + Spring/Struts/log4j detection, profile-aware planning |
 | **M3** | Framework migration recipes (Struts, Spring 4→6, log4j1) |
 | **M3.5** | Design advisory engine (smells, layering suggestions) |
-| **M4** | `verify` + security scan + audit UI (dashboard, diffs, export) |
+| **M4** | `verify` + security scan + audit UI (dashboard, diffs, export) — in progress |
 | **M5** | Anti-pattern rules + PDF/JSON audit export |

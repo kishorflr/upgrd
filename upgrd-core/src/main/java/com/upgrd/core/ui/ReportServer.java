@@ -27,7 +27,9 @@ public final class ReportServer implements AutoCloseable {
             "sync-report.json",
             "usage-report.json",
             "security-report.json",
-            "app-documentation.json");
+            "app-documentation.json",
+            "verify-report.json",
+            "audit-export.json");
 
     private final HttpServer server;
     private final Path outputDir;

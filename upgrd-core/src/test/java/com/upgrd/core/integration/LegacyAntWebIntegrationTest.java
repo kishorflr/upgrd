@@ -70,6 +70,9 @@ class LegacyAntWebIntegrationTest {
         assertTrue(Files.isRegularFile(output.resolve("migrated/AGENTS.md")));
         assertTrue(Files.isRegularFile(output.resolve("migrated/upgrd-analysis.json")));
         assertTrue(Files.exists(output.resolve("migrated/app-web/src/test/java/com/upgrd/smoke")));
+        assertTrue(Files.isRegularFile(
+                output.resolve("migrated/app-web/src/main/webapp/WEB-INF/spring-struts-migration.xml")),
+                "Struts config should produce Spring migration hints");
     }
 
     @Test
