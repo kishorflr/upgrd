@@ -40,7 +40,7 @@ class OpenRewriteMavenIntegratorTest {
 
         assertTrue(after.contains("rewrite-maven-plugin"));
         assertTrue(after.contains("rewrite-recipe-bom"));
-        assertTrue(after.contains("rewrite-migrate-java"));
+        assertTrue(after.contains("rewrite-static-analysis"));
         assertTrue(after.contains("com.upgrd.migrated.UpgradeBaseline"));
     }
 }

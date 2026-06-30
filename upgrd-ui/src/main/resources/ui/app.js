@@ -261,6 +261,42 @@ function renderVerify(verify) {
   }
 }
 
+function renderDeploy(applyReport, verify) {
+  const el_ = document.getElementById('deploy-pipeline');
+  el_.innerHTML = '';
+  if (!applyReport && !verify) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd apply</code> and <code>upgrd verify --wildfly-smoke</code></p>';
+    return;
+  }
+  if (applyReport && applyReport.steps) {
+    el_.appendChild(el('h3', null, 'Apply steps'));
+    const ul = el('ul');
+    applyReport.steps.forEach(step => {
+      const li = el('li');
+      const status = step.status === 'APPLIED' ? badge('applied', 'automated')
+          : step.status === 'ADVISORY' ? badge('advisory', 'advisory')
+          : badge(step.status || 'pending', 'pending');
+      li.appendChild(status);
+      li.appendChild(document.createTextNode(' ' + (step.description || step.id)));
+      ul.appendChild(li);
+    });
+    el_.appendChild(ul);
+  }
+  if (verify && verify.wildflySmoke && verify.wildflySmoke.checked) {
+    el_.appendChild(el('h3', null, 'WildFly (from verify)'));
+    const wf = verify.wildflySmoke;
+    const dl = el('dl', 'grid');
+    [['HTTP reachable', wf.httpReachable ? 'yes' : 'no'],
+     ['Container', wf.containerRunning ? 'running' : 'stopped'],
+     ['WAR deployed', wf.deployed ? 'yes' : 'no']].forEach(([k, v]) => {
+      dl.appendChild(el('dt', null, k));
+      dl.appendChild(el('dd', null, String(v)));
+    });
+    el_.appendChild(dl);
+  }
+  el_.appendChild(el('p', 'muted', 'WebLogic: run upgrd weblogic validate — production wldeploy templates in migrated/deploy/weblogic/'));
+}
+
 function renderDocumentation(doc) {
   const el_ = document.getElementById('app-documentation');
   el_.innerHTML = '';
@@ -288,7 +324,7 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 async function init() {
-  const [analysis, plan, ledger, design, antiPatterns, security, verify, documentation] = await Promise.all([
+  const [analysis, plan, ledger, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
@@ -296,6 +332,7 @@ async function init() {
     fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
     fetchReport('verify-report.json'),
+    fetchReport('apply-report.json'),
     fetchReport('app-documentation.json')
   ]);
   renderDashboard(analysis);
@@ -306,6 +343,7 @@ async function init() {
   renderUsage(analysis);
   renderSecurity(security);
   renderVerify(verify);
+  renderDeploy(applyReport, verify);
   renderDocumentation(documentation);
 }
 

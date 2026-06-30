@@ -35,6 +35,8 @@ public final class OpenRewriteScaffolder {
                       - org.openrewrite.java.migrate.UpgradeToJava%s
                       - org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_0
                       - org.openrewrite.staticanalysis.CommonStaticAnalysis
+                      - org.openrewrite.staticanalysis.ExternalizableHasNoArgsConstructor
+                      - org.openrewrite.staticanalysis.NoDoubleBraceInitialization
                 """.formatted(javaRecipe);
     }
 

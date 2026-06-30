@@ -44,6 +44,11 @@ public final class RecipeCatalog {
                 "Scaffold Thymeleaf templates from Struts JSP views",
                 true));
         register(new RecipeDefinition(
+                "thymeleaf-wiring",
+                "upgrd:ThymeleafWiring",
+                "Wire Thymeleaf view resolver and Maven dependencies",
+                true));
+        register(new RecipeDefinition(
                 "spring-4-to-6",
                 "upgrd:Spring4To6",
                 "Upgrade Spring MVC 4.x to Spring 6",

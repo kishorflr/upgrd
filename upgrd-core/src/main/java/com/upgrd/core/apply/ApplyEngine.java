@@ -47,6 +47,7 @@ public final class ApplyEngine {
     private final AutomationReadinessScaffolder automationScaffolder = new AutomationReadinessScaffolder();
     private final DeployProfileScaffolder deployProfileScaffolder = new DeployProfileScaffolder();
     private final OpenRewriteScaffolder openRewriteScaffolder = new OpenRewriteScaffolder();
+    private final ThymeleafScaffolder thymeleafScaffolder = new ThymeleafScaffolder();
     private final SmokeTestGenerator smokeTestGenerator = new SmokeTestGenerator();
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
@@ -148,6 +149,7 @@ public final class ApplyEngine {
             case "security-verify" -> runSecurityVerifyScaffold(step, migratedRoot, allChanges, changeCounter);
             case "openrewrite-scaffold" -> runOpenRewriteScaffold(step, plan, migratedRoot, allChanges, changeCounter);
             case "openrewrite-dry-run" -> runOpenRewriteDryRun(step, outputDir, migratedRoot, allChanges, changeCounter);
+            case "thymeleaf-wiring" -> runThymeleafWiring(step, appWebRoot, allChanges, changeCounter);
             case "test-scaffold" -> runTestScaffold(step, outputDir, appWebRoot, allChanges, changeCounter, testEntryPoints);
             case "automation-ready" -> runAutomationReady(step, plan, migratedRoot, testEntryPoints, allChanges, changeCounter);
             default -> runRecipe(step, appWebRoot, allChanges, changeCounter);
@@ -337,6 +339,34 @@ public final class ApplyEngine {
             return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
                     "OpenRewrite dry-run skipped: " + ex.getMessage());
         }
+    }
+
+    private ApplyStepResult runThymeleafWiring(
+            UpgradeStep step,
+            Path appWebRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) throws IOException {
+        List<String> artifacts = thymeleafScaffolder.scaffold(appWebRoot);
+        if (artifacts.isEmpty()) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "No Thymeleaf templates found — run struts-jsp-to-thymeleaf first");
+        }
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                "app-web/",
+                List.of(),
+                "",
+                "Thymeleaf wiring: " + String.join(", ", artifacts),
+                step.reason(),
+                List.copyOf(artifacts),
+                "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true));
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Wired Thymeleaf + Spring MVC (" + artifacts.size() + " artifact(s))");
     }
 
     private ApplyStepResult runSecurityVerifyScaffold(

@@ -81,6 +81,9 @@ class LegacyAntWebIntegrationTest {
         assertTrue(Files.isRegularFile(
                 output.resolve("migrated/app-web/src/main/resources/templates/pages/login.html")),
                 "Struts JSP should scaffold Thymeleaf template");
+        assertTrue(Files.isRegularFile(
+                output.resolve("migrated/app-web/src/main/java/com/example/config/WebMvcThymeleafConfig.java")),
+                "Thymeleaf wiring should generate Spring MVC config");
     }
 
     @Test

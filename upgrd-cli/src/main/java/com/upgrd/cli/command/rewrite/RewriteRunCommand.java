@@ -18,9 +18,16 @@ public final class RewriteRunCommand implements Callable<Integer> {
     @Option(names = "--dry-run", defaultValue = "false", description = "Preview changes without modifying sources")
     private boolean dryRun;
 
+    @Option(names = "--require-dry-run", defaultValue = "true",
+            description = "When applying, require .upgrd/rewrite/dry-run-passed from apply or prior dry-run")
+    private boolean requireDryRun;
+
+    @Option(names = "--force", defaultValue = "false", description = "Skip dry-run gate check")
+    private boolean force;
+
     @Override
     public Integer call() throws Exception {
-        var result = new OpenRewriteRunner().run(output, dryRun);
+        var result = new OpenRewriteRunner().run(output, dryRun, requireDryRun && !force && !dryRun);
         System.out.println(result.message());
         if (!result.log().isBlank()) {
             System.out.println(result.log());

@@ -17,10 +17,24 @@ public final class OpenRewriteRunner {
     private final OpenRewriteMavenIntegrator integrator = new OpenRewriteMavenIntegrator();
 
     public RewriteResult run(Path outputDir, boolean dryRun) throws IOException, InterruptedException {
+        return run(outputDir, dryRun, false);
+    }
+
+    public RewriteResult run(Path outputDir, boolean dryRun, boolean requireDryRunGate)
+            throws IOException, InterruptedException {
         Path migrated = outputDir.resolve("migrated").toAbsolutePath().normalize();
         Path pom = migrated.resolve("pom.xml");
         if (!Files.isRegularFile(pom)) {
             throw new IOException("Migrated POM not found: " + pom);
+        }
+
+        if (!dryRun && requireDryRunGate) {
+            Path gate = migrated.resolve(".upgrd/rewrite/dry-run-passed");
+            if (!Files.isRegularFile(gate)) {
+                return new RewriteResult(false, 1,
+                        "OpenRewrite dry-run gate not passed — run `upgrd apply` or `upgrd rewrite run --dry-run` first",
+                        "");
+            }
         }
 
         integrator.ensurePluginConfigured(migrated);

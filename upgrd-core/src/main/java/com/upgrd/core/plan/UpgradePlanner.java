@@ -208,6 +208,14 @@ public final class UpgradePlanner {
                     "Thymeleaf is the recommended Spring 6 view layer; UpGrd generates starter templates from Struts JSPs",
                     fp.evidence().stream().filter(e -> e.contains(".jsp")).limit(5).toList(),
                     StepMode.AUTOMATED));
+            steps.add(step(
+                    "thymeleaf-wiring",
+                    "framework",
+                    "Wire Thymeleaf view resolver and validation dependencies",
+                    "upgrd:ThymeleafWiring",
+                    "Scaffolded Thymeleaf HTML requires Spring MVC ViewResolver and jakarta.validation on the classpath",
+                    List.of("templates/"),
+                    StepMode.AUTOMATED));
         }
 
         if (fp.frameworks().stream().anyMatch(f -> f.startsWith("SPRING_MVC"))) {

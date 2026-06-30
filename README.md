@@ -48,15 +48,7 @@ java -jar upgrd-cli/target/upgrd.jar run --serve-ui \
 
 Reports are written locally to `--output` (default `./upgrd-out`).
 
-## M1 status (v1.0.0)
-
-| Command | Status |
-|---------|--------|
-| `analyze` | WAR/source sync, log usage heatmap, discovery |
-| `plan upgrade --dry-run` | Recipe step list (OpenRewrite-oriented) |
-| `apply`, `verify`, `run` | Not yet implemented |
-
-## M2 / M3 status (1.1.0-SNAPSHOT)
+## Commands
 
 | Command | Status |
 |---------|--------|
@@ -66,12 +58,12 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
 | `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
-| `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run` supported) |
+| `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run`, `--require-dry-run`, `--force`) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints, Thymeleaf scaffolds), Spring 4→6, javax→jakarta, raw collections, security fixes |
-| **Recipes (planned)** | Deeper Struts migration, SQL/deserialization OpenRewrite rules |
+| **Recipes (planned)** | Full Struts controller wiring, SQL OpenRewrite search recipes |
 
 ### WildFly (local smoke deploy)
 

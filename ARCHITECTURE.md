@@ -209,3 +209,4 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M6** | Verify WildFly smoke/deploy integration + deserialization advisory hints |
 | **M7** | WildFly HTTP smoke, WebLogic CLI, deeper Struts hints, OpenRewrite dry-run gate, Profile B E2E |
 | **M8** | CI WildFly Docker job, WebLogic wldeploy templates, Thymeleaf view scaffolds |
+| **M9** | Thymeleaf Spring wiring, OpenRewrite security recipes, rewrite dry-run gate, Deploy UI tab |
