@@ -65,7 +65,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
 | `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify` (SpotBugs + OWASP) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
-| `export` | Bundle all audit JSON reports into `audit-export.json` |
+| `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring, Spring 4→6, javax→jakarta, raw collections, security fixes |
 | **Recipes (planned)** | Full OpenRewrite AST engine, deeper Struts migration, SQL/deserialization rules |
@@ -87,7 +87,7 @@ During **analyze**, UpGrd writes:
 
 - `app-documentation.json` — structured knowledge base (stack, inventory, hot paths, agent guide)
 - `AGENTS.md` — Markdown summary for human and AI agent onboarding
-- `security-report.json` — CVE/CWE findings with remediation status
+- `anti-pattern-report.json` — M5 rule pack findings (god class, SQL concat, unsafe deserialization, etc.)
 
 During **apply**, security fixes run automatically where safe (log4j, weak crypto, hardcoded secrets). Documentation and security reports are updated with post-upgrade status.
 

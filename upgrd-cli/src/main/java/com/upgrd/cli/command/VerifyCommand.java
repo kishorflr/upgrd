@@ -2,6 +2,7 @@ package com.upgrd.cli.command;
 
 import com.upgrd.core.failure.FailureReportService;
 import com.upgrd.core.verify.VerifyReportWriter;
+import com.upgrd.core.verify.WildFlySmokeChecker;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -26,6 +27,10 @@ public final class VerifyCommand implements Callable<Integer> {
     @Option(names = "--security-scan", defaultValue = "false",
             description = "Also run SpotBugs + OWASP Dependency-Check (-Psecurity-verify)")
     private boolean securityScan;
+
+    @Option(names = "--wildfly-smoke", defaultValue = "false",
+            description = "After verify, check WildFly deploy scaffold (and Docker availability)")
+    private boolean wildflySmoke;
 
     @Override
     public Integer call() throws Exception {
@@ -79,6 +84,13 @@ public final class VerifyCommand implements Callable<Integer> {
                 written.forEach(path -> System.out.printf("    %s%n", path));
             }
         }
+
+        if (wildflySmoke) {
+            var smoke = new WildFlySmokeChecker().check(migratedDir);
+            System.out.println("  WildFly smoke check:");
+            smoke.notes().forEach(note -> System.out.printf("    %s%n", note));
+        }
+
         return exitCode;
     }
 }

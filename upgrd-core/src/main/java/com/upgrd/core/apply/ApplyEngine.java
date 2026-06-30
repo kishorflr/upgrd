@@ -46,6 +46,7 @@ public final class ApplyEngine {
     private final MavenScaffolder mavenScaffolder = new MavenScaffolder();
     private final AutomationReadinessScaffolder automationScaffolder = new AutomationReadinessScaffolder();
     private final DeployProfileScaffolder deployProfileScaffolder = new DeployProfileScaffolder();
+    private final OpenRewriteScaffolder openRewriteScaffolder = new OpenRewriteScaffolder();
     private final SmokeTestGenerator smokeTestGenerator = new SmokeTestGenerator();
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
@@ -145,6 +146,7 @@ public final class ApplyEngine {
             case "wildfly-local" -> runWildflyLocal(step, plan, migratedRoot, allChanges, changeCounter);
             case "weblogic-adapters" -> runWeblogicAdapters(step, plan, migratedRoot, allChanges, changeCounter);
             case "security-verify" -> runSecurityVerifyScaffold(step, migratedRoot, allChanges, changeCounter);
+            case "openrewrite-scaffold" -> runOpenRewriteScaffold(step, plan, migratedRoot, allChanges, changeCounter);
             case "test-scaffold" -> runTestScaffold(step, outputDir, appWebRoot, allChanges, changeCounter, testEntryPoints);
             case "automation-ready" -> runAutomationReady(step, plan, migratedRoot, testEntryPoints, allChanges, changeCounter);
             default -> runRecipe(step, appWebRoot, allChanges, changeCounter);
@@ -267,6 +269,31 @@ public final class ApplyEngine {
         recordDeployChange(step, migratedRoot, allChanges, changeCounter, artifacts);
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Generated WebLogic production deploy overlays (" + artifacts.size() + " file(s))");
+    }
+
+    private ApplyStepResult runOpenRewriteScaffold(
+            UpgradeStep step,
+            UpgradePlan plan,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) throws IOException {
+        List<String> artifacts = openRewriteScaffolder.scaffold(migratedRoot, plan.targetJava());
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                "migrated/.upgrd/",
+                List.of(),
+                "",
+                "OpenRewrite scaffold: " + String.join(", ", artifacts),
+                step.reason(),
+                List.copyOf(artifacts),
+                "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true));
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Scaffolded OpenRewrite config for optional AST migrations");
     }
 
     private ApplyStepResult runSecurityVerifyScaffold(

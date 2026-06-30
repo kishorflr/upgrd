@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
+import com.upgrd.core.model.AntiPatternReport;
 import com.upgrd.core.model.ApplicationDocumentation;
 import com.upgrd.core.model.ChangeLedger;
 import com.upgrd.core.model.ChangeRecord;
@@ -33,6 +34,13 @@ public final class ReportWriter {
     public Path writeDesignAdvisory(DesignAdvisoryReport report, Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
         Path file = outputDir.resolve("design-advisory.json");
+        mapper.writeValue(file.toFile(), report);
+        return file;
+    }
+
+    public Path writeAntiPatternReport(AntiPatternReport report, Path outputDir) throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("anti-pattern-report.json");
         mapper.writeValue(file.toFile(), report);
         return file;
     }

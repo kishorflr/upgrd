@@ -18,7 +18,7 @@ class AuditExporterTest {
         Files.writeString(tempDir.resolve("analysis-report.json"), "{\"version\":\"1.0\"}");
         Files.writeString(tempDir.resolve("change-ledger.json"), "{\"changes\":[]}");
 
-        var result = new AuditExporter().export(tempDir);
+        var result = new AuditExporter().export(tempDir, AuditExporter.ExportOptions.defaults());
 
         assertTrue(result.reportCount() >= 2);
         assertTrue(Files.isRegularFile(result.jsonFile()));

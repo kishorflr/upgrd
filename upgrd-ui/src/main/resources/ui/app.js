@@ -185,6 +185,35 @@ function renderSecurity(security) {
   });
 }
 
+function renderAntiPatterns(report) {
+  const el_ = document.getElementById('anti-pattern-report');
+  el_.innerHTML = '';
+  if (!report) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> to generate anti-pattern-report.json</p>';
+    return;
+  }
+  el_.appendChild(el('p', null, 'Total findings: ' + (report.totalFindings || 0)));
+  if (report.countsBySeverity) {
+    const dl = el('dl', 'grid');
+    Object.entries(report.countsBySeverity).forEach(([k, v]) => {
+      dl.appendChild(el('dt', null, k));
+      dl.appendChild(el('dd', null, String(v)));
+    });
+    el_.appendChild(dl);
+  }
+  (report.findings || []).forEach(f => {
+    const div = el('div', 'advisory');
+    const h = el('h3');
+    h.textContent = f.pattern + ' — ' + f.file;
+    h.prepend(badge(f.severity, 'risk-' + f.severity.toLowerCase()));
+    div.appendChild(h);
+    div.appendChild(el('p', 'muted', f.ruleId + ' | ' + f.category));
+    div.appendChild(el('div', 'reason', f.suggestion || ''));
+    div.appendChild(el('p', null, f.rationale || ''));
+    el_.appendChild(div);
+  });
+}
+
 function renderVerify(verify) {
   const el_ = document.getElementById('verify-report');
   el_.innerHTML = '';
@@ -238,11 +267,12 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 async function init() {
-  const [analysis, plan, ledger, design, security, verify, documentation] = await Promise.all([
+  const [analysis, plan, ledger, design, antiPatterns, security, verify, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
     fetchReport('design-advisory.json'),
+    fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
     fetchReport('verify-report.json'),
     fetchReport('app-documentation.json')
@@ -251,6 +281,7 @@ async function init() {
   renderPlan(plan);
   renderChanges(ledger);
   renderDesign(design);
+  renderAntiPatterns(antiPatterns);
   renderUsage(analysis);
   renderSecurity(security);
   renderVerify(verify);

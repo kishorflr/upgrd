@@ -17,6 +17,7 @@
     <button class="tab" data-panel="plan">Plan</button>
     <button class="tab" data-panel="changes">Changes</button>
     <button class="tab" data-panel="design">Design</button>
+    <button class="tab" data-panel="antipatterns">Anti-patterns</button>
     <button class="tab" data-panel="security">Security</button>
     <button class="tab" data-panel="verify">Verify</button>
     <button class="tab" data-panel="documentation">Documentation</button>
@@ -47,6 +48,12 @@
       <div id="design-advisory" class="card">Loading…</div>
     </section>
 
+    <section id="antipatterns" class="panel">
+      <h2>Anti-pattern Rules</h2>
+      <p class="muted">M5 rule pack — detected during analyze for compliance prioritization.</p>
+      <div id="anti-pattern-report" class="card">Loading…</div>
+    </section>
+
     <section id="usage" class="panel">
       <h2>Log Usage Heatmap</h2>
       <div id="usage-report" class="card">Loading…</div>
@@ -72,7 +79,7 @@
   <footer>
     <p>Reports served from local <code>--output</code> directory only.</p>
     <p class="muted">After <code>upgrd verify</code>, failure reports appear in <code>migrated/.upgrd/failure-report/</code>.</p>
-    <p class="muted">Run <code>upgrd export --output ./upgrd-out</code> to bundle reports into <code>audit-export.json</code>.</p>
+    <p class="muted">Run <code>upgrd export --pdf --output ./upgrd-out</code> for compliance PDF sign-off.</p>
   </footer>
 
   <script src="/ui/app.js"></script>

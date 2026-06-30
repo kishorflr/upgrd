@@ -118,6 +118,15 @@ public final class UpgradePlanner {
                 StepMode.AUTOMATED));
 
         steps.add(step(
+                "openrewrite-scaffold",
+                "tooling",
+                "Scaffold OpenRewrite config for deeper AST migrations",
+                "upgrd:OpenRewriteScaffold",
+                "File-level recipes cover safe transforms; OpenRewrite YAML enables optional AST passes when teams are ready",
+                List.of("profile=" + profile),
+                StepMode.AUTOMATED));
+
+        steps.add(step(
                 "automation-ready",
                 "tooling",
                 "Embed AI/automation-friendly metadata in migrated application",
@@ -207,6 +216,7 @@ public final class UpgradePlanner {
             case "upgrd:Log4j1ToSlf4j" -> "migrate-log4j1";
             case "upgrd:RemediateWeakHash" -> "remediate-weak-crypto";
             case "upgrd:ExternalizeSecrets" -> "remediate-secrets";
+            case "upgrd:RemediateSqlConcatenation" -> "remediate-sql-concatenation";
             default -> "remediate-" + recipeId.replace("upgrd:", "").toLowerCase();
         };
     }

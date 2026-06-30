@@ -3,6 +3,7 @@ package com.upgrd.core;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.upgrd.core.antipattern.AntiPatternAnalyzer;
 import com.upgrd.core.design.DesignAdvisoryAnalyzer;
 import com.upgrd.core.discovery.ProjectDiscoveryService;
 import com.upgrd.core.documentation.ApplicationDocumenter;
@@ -32,6 +33,7 @@ public final class AnalyzeEngine {
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();
+    private final AntiPatternAnalyzer antiPatternAnalyzer = new AntiPatternAnalyzer();
     private final SecurityAnalyzer securityAnalyzer = new SecurityAnalyzer();
     private final ApplicationDocumenter applicationDocumenter = new ApplicationDocumenter();
     private final DocumentationWriter documentationWriter = new DocumentationWriter();
@@ -59,12 +61,14 @@ public final class AnalyzeEngine {
                 discovery.sourceRoots(),
                 discovery.profile(),
                 discovery.fingerprint());
+        var antiPatterns = antiPatternAnalyzer.analyze(
+                input.sourceRoot(), discovery.sourceRoots(), discovery.profile());
         var security = securityAnalyzer.analyze(input.sourceRoot(), discovery);
 
         AnalysisReport report = new AnalysisReport(
                 VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
 
-        writeReport(report, security, input.sourceRoot(), input.outputDir());
+        writeReport(report, security, antiPatterns, input.sourceRoot(), input.outputDir());
         return report;
     }
 
@@ -79,10 +83,12 @@ public final class AnalyzeEngine {
     private void writeReport(
             AnalysisReport report,
             com.upgrd.core.model.SecurityReport security,
+            com.upgrd.core.model.AntiPatternReport antiPatterns,
             Path sourceRoot,
             Path outputDir) throws IOException {
         writeReport(report, outputDir);
         reportWriter.writeSecurityReport(security, outputDir);
+        reportWriter.writeAntiPatternReport(antiPatterns, outputDir);
         mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
         var documentation = applicationDocumenter.documentAnalyzePhase(
                 report, security, sourceRoot.toAbsolutePath().normalize().toString());

@@ -25,6 +25,7 @@
     <picocli.version>4.7.6</picocli.version>
     <jackson.version>2.18.2</jackson.version>
     <junit.version>5.11.4</junit.version>
+    <pdfbox.version>3.0.3</pdfbox.version>
     <openrewrite.version>8.56.1</openrewrite.version>
   </properties>
 
@@ -59,6 +60,11 @@
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jsr310</artifactId>
         <version>${jackson.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox</artifactId>
+        <version>${pdfbox.version}</version>
       </dependency>
       <dependency>
         <groupId>org.junit.jupiter</groupId>

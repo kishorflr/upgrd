@@ -30,13 +30,14 @@ public final class AuditExporter {
             "sync-report.json",
             "usage-report.json",
             "security-report.json",
+            "anti-pattern-report.json",
             "app-documentation.json");
 
     private final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
 
-    public ExportResult export(Path outputDir) throws IOException {
+    public ExportResult export(Path outputDir, ExportOptions options) throws IOException {
         Files.createDirectories(outputDir);
         Map<String, Object> reports = new LinkedHashMap<>();
         List<String> included = new java.util.ArrayList<>();
@@ -47,7 +48,7 @@ public final class AuditExporter {
                 continue;
             }
             Object parsed = mapper.readValue(file.toFile(), new TypeReference<Map<String, Object>>() {});
-            String key = name.replace(".json", "").replace("-", "_");
+            String key = reportKey(name);
             reports.put(key, parsed);
             included.add(name);
         }
@@ -64,7 +65,24 @@ public final class AuditExporter {
         mapper.writeValue(json.toFile(), bundle);
         Files.writeString(markdown, renderMarkdown(bundle));
 
-        return new ExportResult(json, markdown, included.size());
+        Path html = null;
+        Path pdf = null;
+        if (options.includeHtml()) {
+            html = new AuditHtmlExporter().export(bundle, outputDir);
+        }
+        if (options.includePdf()) {
+            pdf = new AuditPdfExporter().export(bundle, outputDir);
+        }
+
+        return new ExportResult(json, markdown, html, pdf, included.size());
+    }
+
+    public ExportResult export(Path outputDir) throws IOException {
+        return export(outputDir, ExportOptions.defaults());
+    }
+
+    private String reportKey(String fileName) {
+        return fileName.replace(".json", "").replace("-", "_");
     }
 
     private String renderMarkdown(AuditExport bundle) {
@@ -82,6 +100,12 @@ public final class AuditExporter {
         return md.toString();
     }
 
-    public record ExportResult(Path jsonFile, Path markdownFile, int reportCount) {
+    public record ExportResult(Path jsonFile, Path markdownFile, Path htmlFile, Path pdfFile, int reportCount) {
+    }
+
+    public record ExportOptions(boolean includeHtml, boolean includePdf) {
+        public static ExportOptions defaults() {
+            return new ExportOptions(true, false);
+        }
     }
 }

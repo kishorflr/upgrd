@@ -94,6 +94,16 @@ public final class RecipeCatalog {
                 "Add JUnit 5 smoke tests inside migrated app",
                 true));
         register(new RecipeDefinition(
+                "remediate-sql-concatenation",
+                "upgrd:RemediateSqlConcatenation",
+                "Document SQL concatenation hotspots for PreparedStatement refactor",
+                true));
+        register(new RecipeDefinition(
+                "openrewrite-scaffold",
+                "upgrd:OpenRewriteScaffold",
+                "Scaffold OpenRewrite YAML for optional AST migrations",
+                true));
+        register(new RecipeDefinition(
                 "automation-ready",
                 "upgrd:AutomationReady",
                 "Embed AI/automation-friendly metadata in migrated application",

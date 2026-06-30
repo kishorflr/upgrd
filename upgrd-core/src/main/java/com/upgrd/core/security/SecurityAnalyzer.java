@@ -138,7 +138,7 @@ public final class SecurityAnalyzer {
                 int line = lineOf(content, "SELECT");
                 findings.add(finding(counter, "HIGH", "injection", "CWE-89", rel, List.of(line, line + 5),
                         "SQL built via string concatenation — SQL injection risk",
-                        "Use PreparedStatement with bound parameters", "upgrd:RemediateSqlConcatenation", false));
+                        "Use PreparedStatement with bound parameters", "upgrd:RemediateSqlConcatenation", true));
             }
 
             if (UNSAFE_DESERIAL.matcher(content).find()) {
