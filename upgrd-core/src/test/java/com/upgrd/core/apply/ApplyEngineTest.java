@@ -1,5 +1,6 @@
 package com.upgrd.core.apply;
 
+import com.upgrd.core.model.ChangeClassification;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.UpgradePlan;
@@ -42,10 +43,10 @@ class ApplyEngineTest {
                 List.of(
                         new UpgradeStep("convert-maven", "build", "Convert to Maven",
                                 "upgrd:ConvertToMaven", "Ant layout blocks Maven tooling",
-                                List.of("buildSystem=ANT"), StepMode.AUTOMATED),
+                                List.of("buildSystem=ANT"), StepMode.AUTOMATED, ChangeClassification.MANDATORY),
                         new UpgradeStep("migrate-log4j1", "logging", "Migrate log4j",
                                 "upgrd:Log4j1ToSlf4j", "Log4j 1.x is EOL",
-                                List.of("log4j"), StepMode.AUTOMATED)));
+                                List.of("log4j"), StepMode.AUTOMATED, ChangeClassification.MANDATORY)));
 
         ApplyEngine engine = new ApplyEngine();
         var report = engine.apply(plan, source, output);

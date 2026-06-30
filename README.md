@@ -56,6 +56,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 |---------|--------|
 | `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
+| `plan preview` | Dry-run file diffs (before/after) without applying — `change-ledger-preview.json` |
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
 | `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
 | `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
@@ -64,7 +65,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
-| `pipeline run` | Full analyze → plan → apply → verify (`--rewrite-sql-scan`, `--rewrite-after-verify`, `--serve-ui`; WildFly HTTP on by default for legacy-web) |
+| `pipeline run` | analyze → plan → preview; apply/verify only with `--confirm` (`--rewrite-sql-scan`, `--rewrite-after-verify`, `--serve-ui`; WildFly HTTP on by default for legacy-web) |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (validated form beans with `@Size`, `@ControllerAdvice` binding, GET/POST controllers), Spring 4→6, javax→jakarta, security fixes |
 | **Recipes (planned)** | Struts mask/creditCard validation rules, OpenRewrite SQL search recipes |
 
@@ -108,6 +109,27 @@ Validates `deploy/weblogic/` overlays, `wldeploy.sh` / `wldeploy.properties`, an
 
 `.github/workflows/ci.yml` runs `mvn verify` on every push/PR and uploads `upgrd.jar` as a workflow artifact when green. Tag `v*` pushes create a GitHub Release with the shaded JAR (`.github/workflows/release.yml`).
 
+### Review-first workflow (M15)
+
+```bash
+upgrd analyze --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out
+upgrd plan upgrade --source ./legacy-app --dry-run --output ./upgrd-out
+upgrd plan preview --source ./legacy-app --output ./upgrd-out
+upgrd run --serve-ui --output ./upgrd-out   # Review tab: mandatory / optional / rewrite diffs
+upgrd plan upgrade --source ./legacy-app --dry-run=false --output ./upgrd-out
+upgrd apply --plan ./upgrd-out/upgrade-plan.json --source ./legacy-app --output ./upgrd-out
+```
+
+Or use the pipeline with explicit confirmation:
+
+```bash
+upgrd pipeline run --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out --serve-ui
+# Review preview in UI, then:
+upgrd pipeline run --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out --confirm --skip-verify
+```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the M15–M20 roadmap to WAR-authoritative, approval-gated upgrades.
+
 ### One-shot pipeline
 
 ```bash
@@ -116,6 +138,9 @@ upgrd pipeline run \
   --war ./legacy-app.war \
   --output ./upgrd-out \
   --profile legacy-web
+
+# Apply only after reviewing preview:
+upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-web --confirm --skip-verify
 
 # Backend (no WAR):
 upgrd pipeline run --source ./legacy-backend --output ./upgrd-out --profile legacy-backend --skip-verify
@@ -135,7 +160,7 @@ upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-w
 # legacy-web runs WildFly HTTP probe during verify by default; opt out with --no-wildfly-http
 ```
 
-Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
+Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, **Review** preview diffs, change ledger, WAR sync, design advisory).
 
 ## Use case profiles
 

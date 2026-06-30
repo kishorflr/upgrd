@@ -15,5 +15,6 @@ public record ChangeRecord(
         String risk,
         boolean reversible,
         String recipeVersion,
-        boolean automated) {
+        boolean automated,
+        ChangeClassification classification) {
 }

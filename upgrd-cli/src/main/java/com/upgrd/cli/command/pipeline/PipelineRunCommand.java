@@ -15,7 +15,7 @@ import java.util.concurrent.Callable;
 
 @Command(
         name = "run",
-        description = "Analyze → plan → apply → verify in one edge-local pipeline")
+        description = "Analyze → plan → preview → apply (with --confirm) → verify")
 public final class PipelineRunCommand implements Callable<Integer> {
 
     @Option(names = "--source", required = true, description = "Java project source root")
@@ -38,6 +38,10 @@ public final class PipelineRunCommand implements Callable<Integer> {
 
     @Option(names = "--server", defaultValue = "weblogic-14c", description = "Production app server")
     private String server;
+
+    @Option(names = "--confirm", defaultValue = "false",
+            description = "Apply upgrade after preview (default stops at preview for review)")
+    private boolean confirm;
 
     @Option(names = "--skip-verify", defaultValue = "false", description = "Stop after apply (skip mvn verify)")
     private boolean skipVerify;
@@ -100,6 +104,7 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 parseProfile(profile),
                 target,
                 server,
+                confirm,
                 !skipVerify,
                 securityScan,
                 wildflySmoke,
@@ -114,7 +119,14 @@ public final class PipelineRunCommand implements Callable<Integer> {
         System.out.println("UpGrd pipeline complete.");
         System.out.printf("  Phases: %s%n", String.join(" → ", result.completedPhases()));
         System.out.printf("  Plan: %s%n", result.planFile().toAbsolutePath());
-        System.out.printf("  Migrated: %s%n", result.applyReport().migratedRoot());
+        if (result.previewReportFile() != null) {
+            System.out.printf("  Preview: %s%n", result.previewReportFile().toAbsolutePath());
+        }
+        if (result.applyReport() != null) {
+            System.out.printf("  Migrated: %s%n", result.applyReport().migratedRoot());
+        } else if (!result.completedPhases().contains("apply")) {
+            System.out.println("  Apply skipped — review preview in UI, then re-run with --confirm");
+        }
         if (result.rewriteResult() != null) {
             System.out.printf("  Rewrite: %s%n", result.rewriteResult().message());
         }

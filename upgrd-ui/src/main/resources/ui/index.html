@@ -15,6 +15,7 @@
   <nav>
     <button class="tab active" data-panel="dashboard">Dashboard</button>
     <button class="tab" data-panel="plan">Plan</button>
+    <button class="tab" data-panel="review">Review</button>
     <button class="tab" data-panel="changes">Changes</button>
     <button class="tab" data-panel="design">Design</button>
     <button class="tab" data-panel="antipatterns">Anti-patterns</button>
@@ -32,6 +33,22 @@
       <div id="fingerprint" class="card">Loading…</div>
       <h2>Risk Signals</h2>
       <div id="risks" class="card">Loading…</div>
+      <h2>WAR / Source Sync</h2>
+      <div id="sync-summary" class="card">Loading…</div>
+    </section>
+
+    <section id="review" class="panel">
+      <h2>Upgrade Preview</h2>
+      <p class="muted">Before/after diffs from <code>upgrd plan preview</code> or <code>pipeline run</code> (without <code>--confirm</code>).</p>
+      <div class="filter-bar" id="review-filters">
+        <button class="filter active" data-classification="ALL">All</button>
+        <button class="filter" data-classification="MANDATORY">Mandatory</button>
+        <button class="filter" data-classification="RECOMMENDED">Recommended</button>
+        <button class="filter" data-classification="OPTIONAL">Optional</button>
+        <button class="filter" data-classification="REWRITE_REQUIRED">Rewrite required</button>
+      </div>
+      <div id="preview-summary" class="card">Loading…</div>
+      <div id="preview-changes" class="card">Loading…</div>
     </section>
 
     <section id="plan" class="panel">

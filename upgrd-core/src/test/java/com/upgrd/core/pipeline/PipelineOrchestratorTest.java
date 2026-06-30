@@ -32,6 +32,7 @@ class PipelineOrchestratorTest {
                 ProjectProfile.LEGACY_BACKEND,
                 "java21",
                 "weblogic-14c",
+                true,
                 false,
                 false,
                 false,
@@ -43,7 +44,7 @@ class PipelineOrchestratorTest {
                 OpenRewriteRunner.DEFAULT_RECIPE,
                 false));
 
-        assertTrue(result.completedPhases().containsAll(List.of("analyze", "plan", "apply")));
+        assertTrue(result.completedPhases().containsAll(List.of("analyze", "plan", "preview", "apply")));
         assertTrue(Files.isRegularFile(output.resolve("migrated/pom.xml")));
         assertTrue(Files.isRegularFile(output.resolve("apply-report.json")));
     }

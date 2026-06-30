@@ -12,7 +12,7 @@ class PipelineWildflyHttpDefaultTest {
     void enablesWildflyHttpForLegacyWebWhenRequested() {
         var request = new PipelineOrchestrator.PipelineRequest(
                 null, null, null, null, null, "java21", "weblogic-14c",
-                true, false, false, false, false, true,
+                false, true, false, false, false, false, true,
                 false, false, null, false);
 
         assertTrue(shouldRunWildflyHttp(request, ProjectProfile.LEGACY_WEB));
@@ -23,7 +23,7 @@ class PipelineWildflyHttpDefaultTest {
     void explicitWildflyHttpOverridesDefault() {
         var request = new PipelineOrchestrator.PipelineRequest(
                 null, null, null, null, null, "java21", "weblogic-14c",
-                true, false, false, false, true, false,
+                false, true, false, false, false, true, false,
                 false, false, null, false);
 
         assertTrue(shouldRunWildflyHttp(request, ProjectProfile.LEGACY_BACKEND));

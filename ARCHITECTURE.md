@@ -14,7 +14,7 @@
 ## Pipeline
 
 ```
-Discover → Analyze → Plan (dry-run) → Apply → Verify → Report
+Discover → Analyze → Plan (dry-run) → Preview → Confirm → Apply → Verify → Report
 ```
 
 | Phase | Purpose |
@@ -22,6 +22,7 @@ Discover → Analyze → Plan (dry-run) → Apply → Verify → Report
 | Discover | Detect build system, Java version, technology fingerprint, project profile |
 | Analyze | WAR/source sync, log usage mapping, design advisory, security scan, agent documentation |
 | Plan | Profile-aware recipe list with per-step reasoning + security remediation steps |
+| Preview | Dry-run file recipes; before/after snippets in `change-ledger-preview.json` (M15) |
 | Apply | Rewrite source, generate POMs, fix security issues, update change ledger and documentation |
 | Verify | `upgrd verify` runs `mvn verify`; `-Psecurity-verify` for SpotBugs + OWASP; anonymous failure reports on error |
 | Report | JSON reports + local HTML dashboard (localhost only) |
@@ -172,6 +173,7 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 |------|-------------|
 | Dashboard | `analysis-report.json` — profile, fingerprint, risk summary |
 | Plan | `upgrade-plan.json` — steps with reasoning per step |
+| Review | `upgrade-preview-report.json`, `change-ledger-preview.json` — categorized before/after diffs (M15) |
 | Changes | `change-ledger.json` — file-by-file diffs linked to rules |
 | Design | `design-advisory.json` — Profile B smells + suggested refactors |
 | Usage | `usage-report.json` — log heatmap |
@@ -215,3 +217,30 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M12** | Typed form bean scaffolds, Thymeleaf view names from Struts forwards, `pipeline run --rewrite`, v1.1.0 release |
 | **M13** | Jakarta validation on form beans, GET/POST controller split, `pipeline run --rewrite-after-verify`, v1.2.0-SNAPSHOT |
 | **M14** | `@Size` from Struts validation vars, `@ControllerAdvice` form binding, `--rewrite-sql-scan`, default WildFly HTTP for legacy-web |
+| **M15** | Review-first upgrade: `plan preview`, change taxonomy (mandatory/recommended/optional/rewrite), pipeline stops at preview unless `--confirm`, UI Review tab |
+| **M16** | Approval gate: `approved-plan.json`, apply only approved steps, UI approve/reject per step |
+| **M17** | WAR enrichment: `WEB-INF/lib` deps, sync severity, planner uses analyze sync/usage |
+| **M18** | API compatibility catalog (unsupported → replacement → manual), linked to source hits |
+| **M19** | WAR-authoritative apply (merge/decompile/conflict policy) |
+| **M20** | E2E fixture with WAR+logs+source, docs, release |
+
+## Roadmap to final stage (M15–M20)
+
+The target workflow is **review-first, WAR-aware upgrade** — not full auto-deploy:
+
+```
+analyze (logs + WAR + source) → plan → preview (before/after) → user confirms → apply → verify
+```
+
+| Milestone | Delivers |
+|-----------|----------|
+| **M15** | Plan preview with real file diffs; `ChangeClassification` on steps; `pipeline run` stops after preview; `--confirm` to apply; Review tab in audit UI |
+| **M16** | Persist user approval in `approved-plan.json`; `apply` respects approved step IDs only; UI checkboxes |
+| **M17** | WAR classpath and dependency drift in sync report; planner prioritizes WAR-only classes and log hot paths |
+| **M18** | Catalog of unsupported APIs with replacements; link findings to preview diffs and advisories |
+| **M19** | Apply merges production WAR truth into migrated source (conflict markers, decompile policy) |
+| **M20** | End-to-end fixture, operator docs, tagged release |
+
+**Current gaps after M14:** WAR is analyze-only; apply uses source tree. No pre-apply dashboard with categorized diffs. `pipeline run` auto-applied until M15.
+
+**Recommended workflow today:** `analyze` → `plan upgrade --dry-run` → `plan preview` → UI Review tab → `plan upgrade --dry-run=false` → `apply` — or `pipeline run --serve-ui` then re-run with `--confirm`.

@@ -7,11 +7,13 @@ import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.AntiPatternReport;
 import com.upgrd.core.model.ApplicationDocumentation;
 import com.upgrd.core.model.ChangeLedger;
+import com.upgrd.core.model.ChangeClassification;
 import com.upgrd.core.model.ChangeRecord;
 import com.upgrd.core.model.DesignAdvisoryReport;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.SecurityReport;
 import com.upgrd.core.model.UpgradePlan;
+import com.upgrd.core.model.UpgradePreviewReport;
 import com.upgrd.core.model.UpgradeStep;
 
 import java.io.IOException;
@@ -115,7 +117,8 @@ public final class ReportWriter {
                     "PENDING",
                     true,
                     AnalyzeEngine.VERSION,
-                    step.mode() == com.upgrd.core.model.StepMode.AUTOMATED));
+                    step.mode() == com.upgrd.core.model.StepMode.AUTOMATED,
+                    step.classification()));
         }
 
         return new ChangeLedger(
@@ -124,5 +127,19 @@ public final class ReportWriter {
                 sourceRoot.toAbsolutePath().normalize().toString(),
                 plan.profile() != null ? plan.profile() : ProjectProfile.UNKNOWN,
                 changes);
+    }
+
+    public Path writeUpgradePreviewReport(UpgradePreviewReport report, Path outputDir) throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("upgrade-preview-report.json");
+        mapper.writeValue(file.toFile(), report);
+        ChangeLedger previewLedger = new ChangeLedger(
+                report.version(),
+                report.generatedAt(),
+                report.sourceRoot(),
+                report.profile() != null ? report.profile() : ProjectProfile.UNKNOWN,
+                report.changes());
+        mapper.writeValue(outputDir.resolve("change-ledger-preview.json").toFile(), previewLedger);
+        return file;
     }
 }

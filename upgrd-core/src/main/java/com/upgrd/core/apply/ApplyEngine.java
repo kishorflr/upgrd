@@ -185,7 +185,8 @@ public final class ApplyEngine {
                     "LOW",
                     true,
                     AnalyzeEngine.VERSION,
-                    true));
+                    true,
+                    step.classification()));
         }
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
@@ -214,7 +215,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Embedded AGENTS.md, upgrd-analysis.json, and test layout for automation/AI analysis");
@@ -244,7 +246,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Copied " + copied.size() + " file(s) and generated Maven POMs with test infrastructure");
@@ -294,7 +297,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Scaffolded OpenRewrite config for optional AST migrations");
     }
@@ -330,7 +334,8 @@ public final class ApplyEngine {
                         "LOW",
                         true,
                         AnalyzeEngine.VERSION,
-                        true));
+                        true,
+                        step.classification()));
                 return new ApplyStepResult(step.id(), step.recipe(), "APPLIED", result.message());
             }
             return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
@@ -364,7 +369,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Wired Thymeleaf + Spring MVC (" + artifacts.size() + " artifact(s))");
     }
@@ -387,7 +393,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Security verify profile available — run: mvn verify -Psecurity-verify");
     }
@@ -411,7 +418,8 @@ public final class ApplyEngine {
                 "LOW",
                 true,
                 AnalyzeEngine.VERSION,
-                true));
+                true,
+                step.classification()));
     }
 
     private ApplyStepResult runRecipe(
@@ -455,7 +463,8 @@ public final class ApplyEngine {
                     step.category().equals("security") ? "MEDIUM" : "LOW",
                     true,
                     AnalyzeEngine.VERSION,
-                    true));
+                    true,
+                    step.classification()));
         }
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED", runResult.message());

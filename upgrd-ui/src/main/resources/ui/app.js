@@ -16,6 +16,12 @@ function badge(text, kind) {
   return b;
 }
 
+function classificationBadge(classification) {
+  if (!classification) return null;
+  const kind = classification.toLowerCase().replace('_', '-');
+  return badge(classification.replace('_', ' '), 'class-' + kind);
+}
+
 function renderDashboard(analysis) {
   const profileEl = document.getElementById('profile-summary');
   const fpEl = document.getElementById('fingerprint');
@@ -58,6 +64,33 @@ function renderDashboard(analysis) {
     signals.forEach(s => ul.appendChild(el('li', null, s)));
     risksEl.appendChild(ul);
   }
+
+  renderSync(analysis && analysis.sync);
+}
+
+function renderSync(sync) {
+  const el_ = document.getElementById('sync-summary');
+  el_.innerHTML = '';
+  if (!sync) {
+    el_.appendChild(el('p', 'empty', 'Provide --war during analyze to compare production WAR vs source'));
+    return;
+  }
+  const dl = el('dl', 'grid');
+  [['WAR classes', sync.warClassCount], ['Source classes', sync.sourceClassCount],
+   ['Only in WAR', (sync.onlyInWar || []).length],
+   ['Only in source', (sync.onlyInSource || []).length],
+   ['In both', (sync.inBoth || []).length]].forEach(([k, v]) => {
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v)));
+  });
+  el_.appendChild(dl);
+  if ((sync.onlyInWar || []).length) {
+    const h = el('h3', null, 'Production-only classes (WAR truth)');
+    el_.appendChild(h);
+    const ul = el('ul');
+    sync.onlyInWar.slice(0, 15).forEach(c => ul.appendChild(el('li', null, c)));
+    el_.appendChild(ul);
+  }
 }
 
 function renderPlan(plan) {
@@ -73,6 +106,10 @@ function renderPlan(plan) {
     h.textContent = step.description;
     h.prepend(badge(step.mode === 'ADVISORY' ? 'advisory' : 'automated',
       step.mode === 'ADVISORY' ? 'advisory' : 'automated'));
+    if (step.classification) {
+      const cb = classificationBadge(step.classification);
+      if (cb) h.prepend(cb);
+    }
     div.appendChild(h);
     div.appendChild(el('p', 'muted', '[' + step.category + '] ' + step.recipe));
     const reason = el('div', 'reason', step.reason || '');
@@ -87,10 +124,14 @@ function renderPlan(plan) {
 }
 
 function renderChanges(ledger) {
-  const el_ = document.getElementById('change-ledger');
-  el_.innerHTML = '';
+  renderChangeList(document.getElementById('change-ledger'), ledger,
+    'Run <code>upgrd apply</code> to generate change-ledger.json');
+}
+
+function renderChangeList(container, ledger, emptyMessage) {
+  container.innerHTML = '';
   if (!ledger) {
-    el_.innerHTML = '<p class="empty">Run <code>upgrd apply</code> to generate change-ledger.json</p>';
+    container.innerHTML = '<p class="empty">' + emptyMessage + '</p>';
     return;
   }
   (ledger.changes || []).forEach(change => {
@@ -98,6 +139,10 @@ function renderChanges(ledger) {
     const h = el('h3');
     h.textContent = change.file + ' — ' + change.category;
     h.prepend(badge(change.risk || 'pending', 'risk-' + (change.risk || 'pending').toLowerCase()));
+    if (change.classification) {
+      const cb = classificationBadge(change.classification);
+      if (cb) h.prepend(cb);
+    }
     div.appendChild(h);
     div.appendChild(el('p', 'muted', change.ruleId));
     div.appendChild(el('div', 'reason', change.reason || ''));
@@ -114,8 +159,54 @@ function renderChanges(ledger) {
       change.evidence.forEach(e => ul.appendChild(el('li', null, e)));
       div.appendChild(ul);
     }
-    el_.appendChild(div);
+    container.appendChild(div);
   });
+}
+
+let previewLedgerCache = null;
+let previewFilter = 'ALL';
+
+function renderPreviewSummary(preview) {
+  const el_ = document.getElementById('preview-summary');
+  el_.innerHTML = '';
+  if (!preview) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd plan preview</code> or <code>pipeline run</code> (without <code>--confirm</code>)</p>';
+    return;
+  }
+  const dl = el('dl', 'grid');
+  [['Automated steps', preview.automatedSteps], ['Advisory steps', preview.advisorySteps],
+   ['Previewed file changes', preview.previewedFileChanges]].forEach(([k, v]) => {
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v)));
+  });
+  el_.appendChild(dl);
+  if (preview.steps && preview.steps.length) {
+    const ul = el('ul');
+    preview.steps.forEach(s => {
+      const li = el('li');
+      if (s.classification) li.appendChild(classificationBadge(s.classification));
+      li.appendChild(document.createTextNode(' ' + s.description + ' — ' + (s.previewNote || '')));
+      ul.appendChild(li);
+    });
+    el_.appendChild(ul);
+  }
+}
+
+function renderPreviewChanges(ledger) {
+  previewLedgerCache = ledger;
+  const container = document.getElementById('preview-changes');
+  container.innerHTML = '';
+  if (!ledger) {
+    container.innerHTML = '<p class="empty">No preview ledger — run plan preview first</p>';
+    return;
+  }
+  const filtered = (ledger.changes || []).filter(c =>
+    previewFilter === 'ALL' || c.classification === previewFilter);
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="empty">No changes for filter: ' + previewFilter + '</p>';
+    return;
+  }
+  renderChangeList(container, { ...ledger, changes: filtered }, '');
 }
 
 function renderDesign(report) {
@@ -323,11 +414,22 @@ document.querySelectorAll('.tab').forEach(btn => {
   });
 });
 
+document.querySelectorAll('#review-filters .filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#review-filters .filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    previewFilter = btn.dataset.classification;
+    renderPreviewChanges(previewLedgerCache);
+  });
+});
+
 async function init() {
-  const [analysis, plan, ledger, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
+  const [analysis, plan, ledger, previewReport, previewLedger, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
+    fetchReport('upgrade-preview-report.json'),
+    fetchReport('change-ledger-preview.json'),
     fetchReport('design-advisory.json'),
     fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
@@ -338,6 +440,8 @@ async function init() {
   renderDashboard(analysis);
   renderPlan(plan);
   renderChanges(ledger);
+  renderPreviewSummary(previewReport);
+  renderPreviewChanges(previewLedger);
   renderDesign(design);
   renderAntiPatterns(antiPatterns);
   renderUsage(analysis);

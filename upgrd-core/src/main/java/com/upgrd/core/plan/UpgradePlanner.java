@@ -3,6 +3,7 @@ package com.upgrd.core.plan;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.upgrd.core.AnalyzeEngine;
+import com.upgrd.core.model.ChangeClassification;
 import com.upgrd.core.model.BuildSystem;
 import com.upgrd.core.model.LoggingFramework;
 import com.upgrd.core.model.ProjectDiscovery;
@@ -331,7 +332,21 @@ public final class UpgradePlanner {
             String reason,
             List<String> evidence,
             StepMode mode) {
-        return new UpgradeStep(id, category, description, recipe, reason, evidence, mode);
+        return new UpgradeStep(id, category, description, recipe, reason, evidence, mode, classify(id, mode));
+    }
+
+    private ChangeClassification classify(String stepId, StepMode mode) {
+        if (mode == StepMode.ADVISORY) {
+            return ChangeClassification.REWRITE_REQUIRED;
+        }
+        return switch (stepId) {
+            case "convert-maven", "upgrade-java", "migrate-log4j1", "portable-jakarta",
+                    "remediate-weak-crypto", "remediate-secrets" -> ChangeClassification.MANDATORY;
+            case "openrewrite-dry-run", "openrewrite-apply", "openrewrite-sql-scan",
+                    "wildfly-local", "weblogic-adapters", "security-verify",
+                    "test-scaffold", "automation-ready", "openrewrite-scaffold" -> ChangeClassification.OPTIONAL;
+            default -> ChangeClassification.RECOMMENDED;
+        };
     }
 
     public Path writePlan(UpgradePlan plan, Path outputDir) throws IOException {

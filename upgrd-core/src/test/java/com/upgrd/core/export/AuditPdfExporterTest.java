@@ -19,7 +19,7 @@ class AuditPdfExporterTest {
     @Test
     void writesPdfSummary() throws Exception {
         AuditExport bundle = new AuditExport(
-                "1.2.0-SNAPSHOT",
+                "1.3.0-SNAPSHOT",
                 Instant.now(),
                 tempDir.toString(),
                 List.of("analysis-report.json"),

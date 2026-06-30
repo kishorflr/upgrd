@@ -9,5 +9,6 @@ public record UpgradeStep(
         String recipe,
         String reason,
         List<String> evidence,
-        StepMode mode) {
+        StepMode mode,
+        ChangeClassification classification) {
 }

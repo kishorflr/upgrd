@@ -21,6 +21,34 @@ public final class RecipeExecutor {
         return run(recipe, sourceRoot, JAVA_EXT);
     }
 
+    public RecipeRunResult previewOnProject(FileRecipe recipe, Path projectRoot) throws IOException {
+        if (recipe instanceof BulkFileRecipe bulk) {
+            return previewBulk(bulk, projectRoot);
+        }
+        if (recipe instanceof ProjectAwareRecipe aware) {
+            aware.prepare(projectRoot);
+        }
+        return preview(recipe, projectRoot, CONFIG_EXT);
+    }
+
+    private RecipeRunResult previewBulk(BulkFileRecipe recipe, Path projectRoot) throws IOException {
+        List<FileRecipe.FileChange> changes = new ArrayList<>(recipe.generateChanges(projectRoot));
+        return new RecipeRunResult(changes, changes.size(),
+                "Preview " + recipe.displayName() + " — " + changes.size() + " file(s)");
+    }
+
+    private RecipeRunResult preview(FileRecipe recipe, Path root, Set<String> extensions) throws IOException {
+        List<Path> files = listFiles(root, extensions);
+        List<FileRecipe.FileChange> changes = new ArrayList<>();
+        for (Path file : files) {
+            String before = Files.readString(file, StandardCharsets.UTF_8);
+            String relative = root.relativize(file).toString().replace('\\', '/');
+            recipe.transform(relative, before).ifPresent(changes::add);
+        }
+        return new RecipeRunResult(changes, changes.size(),
+                "Preview " + recipe.displayName() + " — " + changes.size() + " file(s)");
+    }
+
     public RecipeRunResult runOnProject(FileRecipe recipe, Path projectRoot) throws IOException {
         if (recipe instanceof BulkFileRecipe bulk) {
             return applyBulk(bulk, projectRoot);

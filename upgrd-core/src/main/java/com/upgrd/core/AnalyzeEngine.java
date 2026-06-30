@@ -29,7 +29,7 @@ import java.util.Set;
 
 public final class AnalyzeEngine {
 
-    public static final String VERSION = "1.2.0-SNAPSHOT";
+    public static final String VERSION = "1.3.0-SNAPSHOT";
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();

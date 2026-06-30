@@ -7,7 +7,9 @@ import com.upgrd.core.model.AnalysisReport;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.UpgradePlan;
+import com.upgrd.core.model.UpgradePreviewReport;
 import com.upgrd.core.openrewrite.OpenRewriteRunner;
+import com.upgrd.core.plan.PlanPreviewEngine;
 import com.upgrd.core.plan.UpgradePlanner;
 import com.upgrd.core.report.ReportWriter;
 import com.upgrd.core.security.SecurityAnalyzer;
@@ -20,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * End-to-end edge-local pipeline: analyze → plan → apply → verify.
+ * End-to-end edge-local pipeline: analyze → plan → preview → (optional) apply → verify.
  */
 public final class PipelineOrchestrator {
 
@@ -54,6 +56,14 @@ public final class PipelineOrchestrator {
                 request.output());
         phases.add("plan");
 
+        UpgradePreviewReport preview = new PlanPreviewEngine().preview(plan, request.source());
+        Path previewFile = new ReportWriter().writeUpgradePreviewReport(preview, request.output());
+        phases.add("preview");
+
+        if (!request.confirmApply()) {
+            return new PipelineResult(true, phases, planFile, previewFile, null, null, null);
+        }
+
         ApplyEngine applyEngine = new ApplyEngine();
         ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output());
         applyEngine.writeReport(applyReport, request.output());
@@ -64,7 +74,7 @@ public final class PipelineOrchestrator {
             rewriteResult = runRewrite(request);
             phases.add("rewrite");
             if (!rewriteResult.success()) {
-                return new PipelineResult(false, phases, planFile, applyReport, null, rewriteResult);
+                return new PipelineResult(false, phases, planFile, previewFile, applyReport, null, rewriteResult);
             }
         }
 
@@ -82,7 +92,7 @@ public final class PipelineOrchestrator {
                     runWildflyHttp));
             phases.add("verify");
             if (!verifyResult.passed()) {
-                return new PipelineResult(false, phases, planFile, applyReport, verifyResult, rewriteResult);
+                return new PipelineResult(false, phases, planFile, previewFile, applyReport, verifyResult, rewriteResult);
             }
         }
 
@@ -90,11 +100,11 @@ public final class PipelineOrchestrator {
             rewriteResult = runRewrite(request);
             phases.add("rewrite");
             if (!rewriteResult.success()) {
-                return new PipelineResult(false, phases, planFile, applyReport, verifyResult, rewriteResult);
+                return new PipelineResult(false, phases, planFile, previewFile, applyReport, verifyResult, rewriteResult);
             }
         }
 
-        return new PipelineResult(true, phases, planFile, applyReport, verifyResult, rewriteResult);
+        return new PipelineResult(true, phases, planFile, previewFile, applyReport, verifyResult, rewriteResult);
     }
 
     private OpenRewriteRunner.RewriteResult runRewrite(PipelineRequest request)
@@ -114,6 +124,7 @@ public final class PipelineOrchestrator {
             ProjectProfile profile,
             String targetJava,
             String productionServer,
+            boolean confirmApply,
             boolean runVerify,
             boolean securityScan,
             boolean wildflySmoke,
@@ -130,6 +141,7 @@ public final class PipelineOrchestrator {
             boolean success,
             List<String> completedPhases,
             Path planFile,
+            Path previewReportFile,
             ApplyReport applyReport,
             VerifyResult verifyResult,
             OpenRewriteRunner.RewriteResult rewriteResult) {

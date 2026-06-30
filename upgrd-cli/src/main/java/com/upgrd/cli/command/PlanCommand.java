@@ -16,7 +16,7 @@ import java.util.concurrent.Callable;
 
 @Command(
         name = "plan",
-        subcommands = PlanCommand.PlanUpgradeCommand.class,
+        subcommands = {PlanCommand.PlanUpgradeCommand.class, PlanPreviewCommand.class},
         description = "Generate upgrade plans")
 public final class PlanCommand implements Runnable {
 

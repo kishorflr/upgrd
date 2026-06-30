@@ -30,7 +30,9 @@ public final class ReportServer implements AutoCloseable {
             "app-documentation.json",
             "verify-report.json",
             "audit-export.json",
-            "anti-pattern-report.json");
+            "anti-pattern-report.json",
+            "upgrade-preview-report.json",
+            "change-ledger-preview.json");
 
     private final HttpServer server;
     private final Path outputDir;
