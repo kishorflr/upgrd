@@ -20,6 +20,9 @@ jobs:
           java-version: "21"
           cache: maven
 
+      - name: Maven verify
+        run: mvn verify -B
+
       - name: Build shaded CLI JAR
         run: mvn -pl upgrd-cli -am package -DskipTests -B
 
@@ -28,7 +31,28 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
           JAR="upgrd-cli/target/upgrd.jar"
           gh release create "$TAG" "$JAR" \
-            --title "UpGrd ${TAG#v}" \
-            --notes "Edge-local Java modernization CLI. Run with \`java -jar upgrd.jar --help\`."
+            --title "UpGrd ${VERSION}" \
+            --notes "$(cat <<EOF
+          ## UpGrd ${VERSION}
+
+          Edge-local Java modernization CLI — analyze, plan, preview, approve, apply, verify.
+
+          ### Workflow
+          \`\`\`bash
+          java -jar upgrd.jar analyze --source ./app --war ./app.war --logs ./logs/*.log --output ./upgrd-out
+          java -jar upgrd.jar pipeline run --source ./app --war ./app.war --output ./upgrd-out --serve-ui
+          java -jar upgrd.jar pipeline run ... --confirm --auto-approve-mandatory --skip-verify
+          \`\`\`
+
+          ### Highlights (${VERSION})
+          - Review-first pipeline with \`plan preview\` and approval gate
+          - WAR-authoritative merge with conflict policies
+          - API compatibility catalog and sync severity reporting
+          - Local audit UI with Review, API, and WAR merge tabs
+
+          See [docs/OPERATOR-RUNBOOK.md](https://github.com/${{ github.repository }}/blob/${TAG}/docs/OPERATOR-RUNBOOK.md) for the full operator guide.
+          EOF
+          )"

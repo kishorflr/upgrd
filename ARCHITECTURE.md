@@ -224,7 +224,7 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M17** | WAR enrichment: `WEB-INF/lib` deps, sync severity, planner uses analyze sync/usage |
 | **M18** | API compatibility catalog (`api-compatibility-report.json`), planner links hits to steps, UI API tab |
 | **M19** | WAR-authoritative apply: merge WEB-INF/classes + lib, Java stubs, conflict policy, `war-merge-report.json` |
-| **M20** | E2E fixture with WAR+logs+source, docs, release |
+| **M20** | E2E fixture with WAR+logs+source, operator runbook, v1.7.0 release |
 
 ## Roadmap to final stage (M15–M20)
 
@@ -241,8 +241,8 @@ analyze (logs + WAR + source) → plan → preview (before/after) → user confi
 | **M17** | WAR `WEB-INF/lib` inventory, sync severity (NONE→CRITICAL), `sync-report.json`, planner war-source-sync / war-lib-align steps |
 | **M18** | Catalog of unsupported APIs with replacements; link findings to preview diffs and advisories |
 | **M19** | Apply merges production WAR into migrated layout; policies `war-wins` / `source-wins` / `mark-conflict`; stubs under `.upgrd/war-stubs/` |
-| **M20** | End-to-end fixture, operator docs, tagged release |
+| **M20** | End-to-end fixture (`legacy-e2e-web`), `FullUpgradeWorkflowE2ETest`, [docs/OPERATOR-RUNBOOK.md](docs/OPERATOR-RUNBOOK.md), v1.7.0 release |
 
-**Current gaps after M19:** Full decompilation of WAR-only classes is not automated — stubs + bytecode copy; manual port required. M20 adds E2E fixture and release.
+**M20 complete (v1.7.0):** Review-first, WAR-authoritative upgrade workflow is fully implemented. Remaining manual work: port WAR-only classes from stubs under `.upgrd/war-stubs/`.
 
 **Recommended workflow today:** `analyze` → `plan upgrade --dry-run` → `plan preview` → UI Review tab → `plan upgrade --dry-run=false` → `apply` — or `pipeline run --serve-ui` then re-run with `--confirm`.

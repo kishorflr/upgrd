@@ -17,7 +17,7 @@ import picocli.CommandLine.Command;
 @Command(
         name = "upgrd",
         mixinStandardHelpOptions = true,
-        version = "UpGrd 1.7.0-SNAPSHOT",
+        version = "UpGrd 1.7.0",
         description = "Edge-local Java modernization toolkit (no AI at runtime)",
         subcommands = {
                 AnalyzeCommand.class,

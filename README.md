@@ -138,6 +138,18 @@ upgrd pipeline run ... --confirm --auto-approve-mandatory --skip-verify
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the M15–M20 roadmap to WAR-authoritative, approval-gated upgrades.
 
+### Operator runbook
+
+Full step-by-step guidance for production upgrades: [docs/OPERATOR-RUNBOOK.md](docs/OPERATOR-RUNBOOK.md).
+
+### E2E fixture (M20)
+
+Integration test `FullUpgradeWorkflowE2ETest` exercises the full workflow against `upgrd-core/src/test/resources/fixtures/legacy-e2e-web/` (source + logs; WAR with drift built in test):
+
+```bash
+mvn -pl upgrd-core test -Dtest=FullUpgradeWorkflowE2ETest
+```
+
 ### One-shot pipeline
 
 ```bash
