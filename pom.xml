@@ -15,6 +15,7 @@
   <modules>
     <module>upgrd-core</module>
     <module>upgrd-recipes</module>
+    <module>upgrd-ui</module>
     <module>upgrd-cli</module>
   </modules>
 
@@ -37,6 +38,11 @@
       <dependency>
         <groupId>com.upgrd</groupId>
         <artifactId>upgrd-recipes</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.upgrd</groupId>
+        <artifactId>upgrd-ui</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

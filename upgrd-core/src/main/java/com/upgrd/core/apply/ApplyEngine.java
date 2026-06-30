@@ -6,8 +6,11 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.ApplyStepResult;
+import com.upgrd.core.model.ChangeLedger;
+import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
+import com.upgrd.core.report.ReportWriter;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * M2 scaffold: creates migrated/ layout and records per-step apply status.
+ * M2 scaffold: creates migrated/ layout, change ledger preview, and per-step apply status.
  * OpenRewrite execution will be wired in a follow-up change.
  */
 public final class ApplyEngine {
@@ -25,6 +28,7 @@ public final class ApplyEngine {
     private final ObjectMapper mapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
+    private final ReportWriter reportWriter = new ReportWriter();
 
     public UpgradePlan loadPlan(Path planFile) throws IOException {
         return mapper.readValue(planFile.toFile(), UpgradePlan.class);
@@ -40,12 +44,23 @@ public final class ApplyEngine {
 
         List<ApplyStepResult> results = new ArrayList<>();
         for (UpgradeStep step : plan.steps()) {
+            if (step.mode() == StepMode.ADVISORY) {
+                results.add(new ApplyStepResult(
+                        step.id(),
+                        step.recipe(),
+                        "ADVISORY",
+                        "Advisory step — review in design-advisory.json and audit UI; not auto-applied"));
+                continue;
+            }
             results.add(new ApplyStepResult(
                     step.id(),
                     step.recipe(),
                     "PENDING",
                     "Recipe execution not yet implemented (M2 in progress)"));
         }
+
+        ChangeLedger ledger = reportWriter.previewFromPlan(plan, sourceRoot);
+        reportWriter.writeChangeLedger(ledger, outputDir);
 
         ApplyReport report = new ApplyReport(
                 AnalyzeEngine.VERSION,

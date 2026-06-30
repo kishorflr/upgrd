@@ -7,5 +7,7 @@ public record ProjectDiscovery(
         String javaVersionHint,
         List<String> sourceRoots,
         List<String> webInfDescriptors,
-        boolean containsWeblogicApi) {
+        boolean containsWeblogicApi,
+        TechnologyFingerprint fingerprint,
+        ProjectProfile profile) {
 }

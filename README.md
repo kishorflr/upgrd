@@ -35,7 +35,18 @@ java -jar upgrd-cli/target/upgrd.jar plan upgrade \
   --server weblogic-14c \
   --dry-run \
   --output ./upgrd-out
+
+java -jar upgrd-cli/target/upgrd.jar apply \
+  --plan ./upgrd-out/upgrade-plan.json \
+  --source ./legacy-app \
+  --output ./upgrd-out
+
+java -jar upgrd-cli/target/upgrd.jar run --serve-ui \
+  --output ./upgrd-out \
+  --port 8765
 ```
+
+Reports are written locally to `--output` (default `./upgrd-out`).
 
 ## M1 status (v1.0.0)
 
@@ -49,18 +60,23 @@ java -jar upgrd-cli/target/upgrd.jar plan upgrade \
 
 | Command | Status |
 |---------|--------|
-| `apply` | Scaffold: loads plan, creates `migrated/` layout, writes `apply-report.json` |
+| `analyze` | Profile detection, technology fingerprint, design advisory |
+| `plan upgrade --dry-run` | Profile-aware steps with per-step reasoning + change ledger preview |
+| `apply` | Scaffold: migrated/ layout, change ledger, apply-report.json |
+| `run --serve-ui` | Local audit dashboard on localhost (reads JSON reports only) |
 | `upgrd-recipes` | OpenRewrite recipe catalog (execution pending) |
 | Maven conversion + Java 21 rewrite | Planned |
 
-```bash
-java -jar upgrd-cli/target/upgrd.jar apply \
-  --plan ./upgrd-out/upgrade-plan.json \
-  --source ./legacy-app \
-  --output ./upgrd-out
-```
+Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 
-Reports are written locally to `--output` (default `./upgrd-out`).
+## Use case profiles
+
+| Profile | Typical input | UpGrd behavior |
+|---------|---------------|----------------|
+| `legacy-web` | Ant WAR, Spring MVC 4 + Struts, log4j 1.x | Automated framework/logging migrations; reasoning in plan + UI |
+| `legacy-backend` | JDK 7 flat/Ant, minimal frameworks | Java upgrade automated; design changes **advisory only** |
+
+Profiles are auto-detected or set with `--profile legacy-web` / `--profile legacy-backend`.
 
 ## Security
 
@@ -70,6 +86,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for design principles.
 
 ## Modules
 
-- `upgrd-core` — discovery, analysis, planning, apply orchestration
+- `upgrd-core` — discovery, analysis, planning, apply orchestration, report server
 - `upgrd-recipes` — OpenRewrite recipe catalog (M2)
+- `upgrd-ui` — local audit dashboard static assets
 - `upgrd-cli` — command-line interface (shaded JAR)

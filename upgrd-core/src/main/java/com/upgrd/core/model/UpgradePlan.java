@@ -8,5 +8,6 @@ public record UpgradePlan(
         String targetJava,
         String productionServer,
         String localServer,
+        ProjectProfile profile,
         List<UpgradeStep> steps) {
 }

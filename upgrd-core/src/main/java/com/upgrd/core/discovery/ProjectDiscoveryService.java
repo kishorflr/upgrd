@@ -2,6 +2,8 @@ package com.upgrd.core.discovery;
 
 import com.upgrd.core.model.BuildSystem;
 import com.upgrd.core.model.ProjectDiscovery;
+import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.model.TechnologyFingerprint;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,19 +14,32 @@ import java.util.stream.Stream;
 
 public final class ProjectDiscoveryService {
 
+    private final TechnologyFingerprintScanner fingerprintScanner = new TechnologyFingerprintScanner();
+
     public ProjectDiscovery discover(Path sourceRoot) throws IOException {
+        return discover(sourceRoot, null);
+    }
+
+    public ProjectDiscovery discover(Path sourceRoot, ProjectProfile profileOverride) throws IOException {
         BuildSystem buildSystem = detectBuildSystem(sourceRoot);
         String javaVersionHint = readJavaVersionHint(sourceRoot, buildSystem);
         List<String> sourceRoots = findSourceRoots(sourceRoot);
         List<String> descriptors = findWebDescriptors(sourceRoot);
         boolean weblogicApi = containsWeblogicReferences(sourceRoot, sourceRoots);
 
+        TechnologyFingerprint fingerprint = fingerprintScanner.scan(sourceRoot, sourceRoots);
+        ProjectProfile profile = profileOverride != null
+                ? profileOverride
+                : fingerprintScanner.inferProfile(fingerprint, descriptors);
+
         return new ProjectDiscovery(
                 buildSystem,
                 javaVersionHint,
                 sourceRoots,
                 descriptors,
-                weblogicApi);
+                weblogicApi,
+                fingerprint,
+                profile);
     }
 
     private BuildSystem detectBuildSystem(Path root) {
@@ -54,6 +69,15 @@ public final class ProjectDiscoveryService {
                 }
             }
         }
+        if (Files.exists(root.resolve("build.xml"))) {
+            String buildXml = Files.readString(root.resolve("build.xml"));
+            if (buildXml.contains("source=\"1.7\"") || buildXml.contains("target=\"1.7\"")) {
+                return "1.7";
+            }
+            if (buildXml.contains("source=\"1.8\"") || buildXml.contains("target=\"1.8\"")) {
+                return "1.8";
+            }
+        }
         return "unknown";
     }
 
@@ -79,7 +103,8 @@ public final class ProjectDiscoveryService {
                     .filter(name -> name.endsWith("web.xml")
                             || name.endsWith("weblogic.xml")
                             || name.endsWith("jboss-web.xml")
-                            || name.endsWith("application.xml"))
+                            || name.endsWith("application.xml")
+                            || name.endsWith("struts-config.xml"))
                     .forEach(descriptors::add);
         }
         return descriptors.stream().sorted().toList();

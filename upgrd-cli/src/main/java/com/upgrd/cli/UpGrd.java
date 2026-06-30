@@ -3,6 +3,7 @@ package com.upgrd.cli;
 import com.upgrd.cli.command.AnalyzeCommand;
 import com.upgrd.cli.command.ApplyCommand;
 import com.upgrd.cli.command.PlanCommand;
+import com.upgrd.cli.command.RunCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
@@ -14,7 +15,8 @@ import picocli.CommandLine.Command;
         subcommands = {
                 AnalyzeCommand.class,
                 PlanCommand.class,
-                ApplyCommand.class
+                ApplyCommand.class,
+                RunCommand.class
         })
 public final class UpGrd implements Runnable {
 

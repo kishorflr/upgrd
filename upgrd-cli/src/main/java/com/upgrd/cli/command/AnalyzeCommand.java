@@ -3,6 +3,7 @@ package com.upgrd.cli.command;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
+import com.upgrd.core.model.ProjectProfile;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -28,21 +29,44 @@ public final class AnalyzeCommand implements Callable<Integer> {
     @Option(names = "--output", defaultValue = "./upgrd-out", description = "Output directory")
     private Path output;
 
+    @Option(names = "--profile", description = "Override profile: legacy-web, legacy-backend")
+    private String profile;
+
     @Override
     public Integer call() throws Exception {
+        ProjectProfile profileOverride = parseProfile(profile);
         AnalyzeEngine engine = new AnalyzeEngine();
-        AnalysisReport report = engine.analyze(new AnalysisInput(source, war, logs, output));
+        AnalysisReport report = engine.analyze(new AnalysisInput(source, war, logs, output, profileOverride));
         Path reportFile = engine.writeReport(report, output);
 
+        var fp = report.discovery().fingerprint();
         System.out.printf("UpGrd analysis complete.%n");
-        System.out.printf("  Build system: %s%n", report.discovery().buildSystem());
+        System.out.printf("  Profile: %s | Build: %s | Java: %s%n",
+                report.discovery().profile(), report.discovery().buildSystem(),
+                report.discovery().javaVersionHint());
+        System.out.printf("  Frameworks: %s | Logging: %s%n",
+                String.join(", ", fp.frameworks().isEmpty() ? List.of("none") : fp.frameworks()),
+                fp.logging());
+        System.out.printf("  Risk signals: %d | Design advisories: %d%n",
+                fp.riskSignals().size(), report.designAdvisory().advisories().size());
         System.out.printf("  WAR classes: %d | Source classes: %d%n",
                 report.sync().warClassCount(), report.sync().sourceClassCount());
-        System.out.printf("  Only in WAR: %d | Only in source: %d%n",
-                report.sync().onlyInWar().size(), report.sync().onlyInSource().size());
         System.out.printf("  Log hits: %d | Unused WAR classes: %d%n",
                 report.usage().totalHits(), report.usage().unusedInWar().size());
         System.out.printf("  Report: %s%n", reportFile.toAbsolutePath());
+        System.out.printf("  Design advisory: %s/design-advisory.json%n", output.toAbsolutePath());
         return 0;
+    }
+
+    private ProjectProfile parseProfile(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return switch (value.toLowerCase().replace('_', '-')) {
+            case "legacy-web" -> ProjectProfile.LEGACY_WEB;
+            case "legacy-backend" -> ProjectProfile.LEGACY_BACKEND;
+            default -> throw new IllegalArgumentException("Unknown profile: " + value
+                    + " (use legacy-web or legacy-backend)");
+        };
     }
 }

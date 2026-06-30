@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UpGrd Audit Dashboard</title>
+  <link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+  <header>
+    <h1>UpGrd Audit Dashboard</h1>
+    <p class="subtitle">Edge-local reports — no cloud, no AI at runtime</p>
+  </header>
+
+  <nav>
+    <button class="tab active" data-panel="dashboard">Dashboard</button>
+    <button class="tab" data-panel="plan">Plan</button>
+    <button class="tab" data-panel="changes">Changes</button>
+    <button class="tab" data-panel="design">Design</button>
+    <button class="tab" data-panel="usage">Usage</button>
+  </nav>
+
+  <main>
+    <section id="dashboard" class="panel active">
+      <h2>Project Profile</h2>
+      <div id="profile-summary" class="card">Loading…</div>
+      <h2>Technology Fingerprint</h2>
+      <div id="fingerprint" class="card">Loading…</div>
+      <h2>Risk Signals</h2>
+      <div id="risks" class="card">Loading…</div>
+    </section>
+
+    <section id="plan" class="panel">
+      <h2>Upgrade Plan</h2>
+      <div id="plan-steps" class="card">Loading…</div>
+    </section>
+
+    <section id="changes" class="panel">
+      <h2>Change Ledger</h2>
+      <div id="change-ledger" class="card">Loading…</div>
+    </section>
+
+    <section id="design" class="panel">
+      <h2>Design Advisory</h2>
+      <div id="design-advisory" class="card">Loading…</div>
+    </section>
+
+    <section id="usage" class="panel">
+      <h2>Log Usage Heatmap</h2>
+      <div id="usage-report" class="card">Loading…</div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Reports served from local <code>--output</code> directory only.</p>
+  </footer>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>

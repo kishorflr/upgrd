@@ -19,9 +19,39 @@ public final class RecipeCatalog {
                 "Convert project layout to Maven multi-module structure",
                 false));
         register(new RecipeDefinition(
+                "migrate-log4j1",
+                "upgrd:Log4j1ToSlf4j",
+                "Migrate log4j 1.x to SLF4J",
+                false));
+        register(new RecipeDefinition(
+                "struts-to-spring-mvc",
+                "upgrd:StrutsActionToSpringController",
+                "Migrate Struts actions to Spring MVC controllers",
+                false));
+        register(new RecipeDefinition(
+                "spring-4-to-6",
+                "org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_0",
+                "Upgrade Spring MVC 4.x to Spring 6",
+                false));
+        register(new RecipeDefinition(
                 "upgrade-java",
                 "org.openrewrite.java.migrate.UpgradeToJava21",
                 "Upgrade source compatibility to Java 21",
+                false));
+        register(new RecipeDefinition(
+                "replace-raw-collections",
+                "org.openrewrite.staticanalysis.CommonStaticAnalysis",
+                "Replace raw and legacy collection types",
+                false));
+        register(new RecipeDefinition(
+                "introduce-layering",
+                "upgrd:ExtractServiceLayer",
+                "Propose service/repository layer extraction (advisory)",
+                false));
+        register(new RecipeDefinition(
+                "add-interfaces",
+                "upgrd:SuggestAbstractions",
+                "Suggest abstractions for tightly coupled classes (advisory)",
                 false));
         register(new RecipeDefinition(
                 "portable-jakarta",
