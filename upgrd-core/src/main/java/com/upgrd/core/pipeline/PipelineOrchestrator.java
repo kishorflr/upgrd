@@ -2,6 +2,7 @@ package com.upgrd.core.pipeline;
 
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.apply.ApplyEngine;
+import com.upgrd.core.model.ApprovedPlan;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
 import com.upgrd.core.model.ApplyReport;
@@ -9,6 +10,7 @@ import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradePreviewReport;
 import com.upgrd.core.openrewrite.OpenRewriteRunner;
+import com.upgrd.core.plan.PlanApprovalService;
 import com.upgrd.core.plan.PlanPreviewEngine;
 import com.upgrd.core.plan.UpgradePlanner;
 import com.upgrd.core.report.ReportWriter;
@@ -64,8 +66,18 @@ public final class PipelineOrchestrator {
             return new PipelineResult(true, phases, planFile, previewFile, null, null, null);
         }
 
+        PlanApprovalService approvalService = new PlanApprovalService();
+        ApprovedPlan approval;
+        if (request.autoApproveMandatory()) {
+            approval = approvalService.createDefault(plan, request.source(), true, false, false);
+            approvalService.write(approval, request.output());
+        } else {
+            approval = approvalService.loadFromOutput(request.output());
+        }
+        approvalService.validate(approval, plan);
+
         ApplyEngine applyEngine = new ApplyEngine();
-        ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output());
+        ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output(), approval);
         applyEngine.writeReport(applyReport, request.output());
         phases.add("apply");
 
@@ -125,6 +137,7 @@ public final class PipelineOrchestrator {
             String targetJava,
             String productionServer,
             boolean confirmApply,
+            boolean autoApproveMandatory,
             boolean runVerify,
             boolean securityScan,
             boolean wildflySmoke,

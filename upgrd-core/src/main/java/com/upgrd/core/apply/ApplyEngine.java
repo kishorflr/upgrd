@@ -6,6 +6,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.documentation.ApplicationDocumenter;
 import com.upgrd.core.documentation.DocumentationWriter;
+import com.upgrd.core.model.ApprovedPlan;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.ApplyStepResult;
 import com.upgrd.core.model.ChangeLedger;
@@ -16,6 +17,7 @@ import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
 import com.upgrd.core.model.UsageReport;
 import com.upgrd.core.report.ReportWriter;
+import com.upgrd.core.plan.PlanApprovalService;
 import com.upgrd.core.security.SecurityReportMerger;
 import com.upgrd.recipes.FileRecipe;
 import com.upgrd.recipes.RecipeCatalog;
@@ -58,8 +60,16 @@ public final class ApplyEngine {
     }
 
     public ApplyReport apply(UpgradePlan plan, Path sourceRoot, Path outputDir) throws IOException {
+        return apply(plan, sourceRoot, outputDir, null);
+    }
+
+    public ApplyReport apply(UpgradePlan plan, Path sourceRoot, Path outputDir, ApprovedPlan approval)
+            throws IOException {
         if (plan.dryRun()) {
             throw new IOException("Cannot apply a dry-run plan. Re-run `plan upgrade` with --dry-run=false.");
+        }
+        if (approval != null) {
+            new PlanApprovalService().validate(approval, plan);
         }
 
         Path migratedRoot = outputDir.resolve("migrated");
@@ -79,6 +89,15 @@ public final class ApplyEngine {
                         step.recipe(),
                         "ADVISORY",
                         "Advisory step — review in design-advisory.json and audit UI; not auto-applied"));
+                continue;
+            }
+
+            if (approval != null && !approval.isApproved(step.id())) {
+                results.add(new ApplyStepResult(
+                        step.id(),
+                        step.recipe(),
+                        "NOT_APPROVED",
+                        "Step not approved in approved-plan.json — run plan approve or update in audit UI"));
                 continue;
             }
 

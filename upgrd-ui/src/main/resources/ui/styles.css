@@ -162,3 +162,34 @@ footer {
 .badge-class-recommended { background: #9e6a0333; color: var(--warn); }
 .badge-class-optional { background: #388bfd33; color: var(--accent); }
 .badge-class-rewrite-required { background: #8957e533; color: var(--advisory); }
+
+.approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.approval-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.approval-row:last-child { border-bottom: none; }
+
+.approval-row label {
+  flex: 1;
+  cursor: pointer;
+}
+
+.approval-row input[type="checkbox"] {
+  margin-top: 0.35rem;
+  accent-color: var(--accent);
+}
+
+.approval-row.disabled {
+  opacity: 0.55;
+}

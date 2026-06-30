@@ -209,6 +209,96 @@ function renderPreviewChanges(ledger) {
   renderChangeList(container, { ...ledger, changes: filtered }, '');
 }
 
+let approvalState = null;
+
+function defaultApproved(step) {
+  if (step.mode === 'ADVISORY') return false;
+  return step.classification === 'MANDATORY';
+}
+
+function buildApprovalFromPlan(plan, existing) {
+  const existingMap = {};
+  if (existing && existing.steps) {
+    existing.steps.forEach(s => { existingMap[s.stepId] = s; });
+  }
+  const steps = (plan.steps || []).map(step => {
+    const prev = existingMap[step.id];
+    return {
+      stepId: step.id,
+      approved: prev ? prev.approved : defaultApproved(step),
+      classification: step.classification,
+      mode: step.mode,
+      note: prev ? prev.note : (step.mode === 'ADVISORY' ? 'Advisory — manual refactor' : '')
+    };
+  });
+  return {
+    upgrdVersion: plan.upgrdVersion || 'ui',
+    generatedAt: new Date().toISOString(),
+    planUpgrdVersion: plan.upgrdVersion,
+    sourceRoot: existing ? existing.sourceRoot : '',
+    steps
+  };
+}
+
+function renderApproval(plan, approval) {
+  const container = document.getElementById('approval-steps');
+  container.innerHTML = '';
+  if (!plan) {
+    container.innerHTML = '<p class="empty">Run <code>upgrd plan upgrade</code> first</p>';
+    approvalState = null;
+    return;
+  }
+  approvalState = buildApprovalFromPlan(plan, approval);
+  (plan.steps || []).forEach((step, idx) => {
+    const row = el('div', 'approval-row' + (step.mode === 'ADVISORY' ? ' disabled' : ''));
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = 'approve-' + step.id;
+    cb.checked = approvalState.steps[idx].approved;
+    cb.disabled = step.mode === 'ADVISORY';
+    cb.addEventListener('change', () => {
+      approvalState.steps[idx].approved = cb.checked;
+      approvalState.steps[idx].note = cb.checked ? 'Approved in UI' : 'Rejected in UI';
+    });
+    const label = document.createElement('label');
+    label.htmlFor = cb.id;
+    label.textContent = step.description + ' [' + step.category + ']';
+    if (step.classification) label.prepend(classificationBadge(step.classification));
+    row.appendChild(cb);
+    row.appendChild(label);
+    container.appendChild(row);
+  });
+}
+
+async function saveApproval() {
+  const status = document.getElementById('approval-status');
+  if (!approvalState) {
+    status.textContent = 'Nothing to save';
+    return;
+  }
+  approvalState.generatedAt = new Date().toISOString();
+  const approved = approvalState.steps.filter(s => s.approved).length;
+  if (approved === 0) {
+    status.textContent = 'Approve at least one automated step';
+    return;
+  }
+  try {
+    const res = await fetch('/api/approval', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(approvalState)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      status.textContent = err.error || 'Save failed';
+      return;
+    }
+    status.textContent = 'Saved ' + approved + ' approved step(s) to approved-plan.json';
+  } catch (e) {
+    status.textContent = 'Save failed: ' + e.message;
+  }
+}
+
 function renderDesign(report) {
   const el_ = document.getElementById('design-advisory');
   el_.innerHTML = '';
@@ -423,13 +513,16 @@ document.querySelectorAll('#review-filters .filter').forEach(btn => {
   });
 });
 
+document.getElementById('save-approval').addEventListener('click', saveApproval);
+
 async function init() {
-  const [analysis, plan, ledger, previewReport, previewLedger, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
+  const [analysis, plan, ledger, previewReport, previewLedger, approval, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
     fetchReport('upgrade-preview-report.json'),
     fetchReport('change-ledger-preview.json'),
+    fetchReport('approved-plan.json'),
     fetchReport('design-advisory.json'),
     fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
@@ -442,6 +535,7 @@ async function init() {
   renderChanges(ledger);
   renderPreviewSummary(previewReport);
   renderPreviewChanges(previewLedger);
+  renderApproval(plan, approval);
   renderDesign(design);
   renderAntiPatterns(antiPatterns);
   renderUsage(analysis);

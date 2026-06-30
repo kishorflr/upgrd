@@ -1,5 +1,10 @@
 package com.upgrd.core.ui;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.upgrd.core.model.ApprovedPlan;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -21,6 +26,7 @@ public final class ReportServer implements AutoCloseable {
     private static final Set<String> REPORT_FILES = Set.of(
             "analysis-report.json",
             "upgrade-plan.json",
+            "approved-plan.json",
             "change-ledger.json",
             "design-advisory.json",
             "apply-report.json",
@@ -37,6 +43,9 @@ public final class ReportServer implements AutoCloseable {
     private final HttpServer server;
     private final Path outputDir;
     private final ClassLoader uiClassLoader;
+    private final ObjectMapper mapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .enable(SerializationFeature.INDENT_OUTPUT);
 
     public ReportServer(Path outputDir, int port) throws IOException {
         this.outputDir = outputDir.toAbsolutePath().normalize();
@@ -44,6 +53,7 @@ public final class ReportServer implements AutoCloseable {
         this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/", this::handleRoot);
         server.createContext("/api/reports/", this::handleReport);
+        server.createContext("/api/approval", this::handleApproval);
         server.createContext("/ui/", this::handleStatic);
         server.setExecutor(Executors.newFixedThreadPool(2));
     }
@@ -81,6 +91,40 @@ public final class ReportServer implements AutoCloseable {
         serveResource(exchange, "ui/" + path, contentType);
     }
 
+    private void handleApproval(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if ("GET".equals(exchange.getRequestMethod())) {
+            serveOutputFile(exchange, "approved-plan.json");
+            return;
+        }
+        if ("POST".equals(exchange.getRequestMethod())) {
+            byte[] body = exchange.getRequestBody().readAllBytes();
+            try {
+                ApprovedPlan approval = mapper.readValue(body, ApprovedPlan.class);
+                if (approval.steps() == null || approval.steps().isEmpty()) {
+                    sendJsonError(exchange, 400, "Approval must include at least one step");
+                    return;
+                }
+                Files.createDirectories(outputDir);
+                mapper.writeValue(outputDir.resolve("approved-plan.json").toFile(), approval);
+                byte[] response = "{\"saved\":true}".getBytes();
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(200, response.length);
+                try (OutputStream out = exchange.getResponseBody()) {
+                    out.write(response);
+                }
+            } catch (Exception ex) {
+                sendJsonError(exchange, 400, "Invalid approval payload: " + ex.getMessage());
+            }
+            return;
+        }
+        exchange.sendResponseHeaders(405, -1);
+    }
+
     private void handleReport(HttpExchange exchange) throws IOException {
         if (!"GET".equals(exchange.getRequestMethod())) {
             exchange.sendResponseHeaders(405, -1);
@@ -91,23 +135,38 @@ public final class ReportServer implements AutoCloseable {
             exchange.sendResponseHeaders(404, -1);
             return;
         }
+        serveOutputFile(exchange, name);
+    }
+
+    private void serveOutputFile(HttpExchange exchange, String name) throws IOException {
         Path file = outputDir.resolve(name);
         if (!Files.isRegularFile(file)) {
-            byte[] body = ("{\"error\":\"not found\",\"file\":\"" + name + "\"}").getBytes();
-            exchange.getResponseHeaders().add("Content-Type", "application/json");
-            exchange.sendResponseHeaders(404, body.length);
-            try (OutputStream out = exchange.getResponseBody()) {
-                out.write(body);
-            }
+            sendJsonError(exchange, 404, "not found: " + name);
             return;
         }
         byte[] body = Files.readAllBytes(file);
         exchange.getResponseHeaders().add("Content-Type", "application/json");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        addCors(exchange);
         exchange.sendResponseHeaders(200, body.length);
         try (OutputStream out = exchange.getResponseBody()) {
             out.write(body);
         }
+    }
+
+    private void sendJsonError(HttpExchange exchange, int code, String message) throws IOException {
+        byte[] body = ("{\"error\":\"" + message.replace("\"", "'") + "\"}").getBytes();
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        addCors(exchange);
+        exchange.sendResponseHeaders(code, body.length);
+        try (OutputStream out = exchange.getResponseBody()) {
+            out.write(body);
+        }
+    }
+
+    private void addCors(HttpExchange exchange) {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
     }
 
     private void serveResource(HttpExchange exchange, String resourcePath, String contentType) throws IOException {

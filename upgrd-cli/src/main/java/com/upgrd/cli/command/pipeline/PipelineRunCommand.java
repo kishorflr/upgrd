@@ -40,8 +40,12 @@ public final class PipelineRunCommand implements Callable<Integer> {
     private String server;
 
     @Option(names = "--confirm", defaultValue = "false",
-            description = "Apply upgrade after preview (default stops at preview for review)")
+            description = "Apply upgrade after preview (requires approved-plan.json unless --auto-approve-mandatory)")
     private boolean confirm;
+
+    @Option(names = "--auto-approve-mandatory", defaultValue = "false",
+            description = "With --confirm, auto-approve MANDATORY steps only (CI shortcut)")
+    private boolean autoApproveMandatory;
 
     @Option(names = "--skip-verify", defaultValue = "false", description = "Stop after apply (skip mvn verify)")
     private boolean skipVerify;
@@ -105,6 +109,7 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 target,
                 server,
                 confirm,
+                autoApproveMandatory,
                 !skipVerify,
                 securityScan,
                 wildflySmoke,

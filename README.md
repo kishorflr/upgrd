@@ -57,7 +57,8 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `plan preview` | Dry-run file diffs (before/after) without applying — `change-ledger-preview.json` |
-| `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
+| `plan approve` | Create `approved-plan.json` (mandatory-only by default; override with flags) |
+| `apply` | Source migration; uses `approved-plan.json` when present (`--skip-approval` for legacy) |
 | `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
 | `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
@@ -65,7 +66,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
-| `pipeline run` | analyze → plan → preview; apply/verify only with `--confirm` (`--rewrite-sql-scan`, `--rewrite-after-verify`, `--serve-ui`; WildFly HTTP on by default for legacy-web) |
+| `pipeline run` | analyze → plan → preview; apply/verify with `--confirm` + `approved-plan.json` (or `--auto-approve-mandatory`) |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (validated form beans with `@Size`, `@ControllerAdvice` binding, GET/POST controllers), Spring 4→6, javax→jakarta, security fixes |
 | **Recipes (planned)** | Struts mask/creditCard validation rules, OpenRewrite SQL search recipes |
 
@@ -115,17 +116,24 @@ Validates `deploy/weblogic/` overlays, `wldeploy.sh` / `wldeploy.properties`, an
 upgrd analyze --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out
 upgrd plan upgrade --source ./legacy-app --dry-run --output ./upgrd-out
 upgrd plan preview --source ./legacy-app --output ./upgrd-out
-upgrd run --serve-ui --output ./upgrd-out   # Review tab: mandatory / optional / rewrite diffs
+upgrd plan approve --output ./upgrd-out --source ./legacy-app
+upgrd run --serve-ui --output ./upgrd-out   # Review tab: diffs + approve steps → Save approval
 upgrd plan upgrade --source ./legacy-app --dry-run=false --output ./upgrd-out
 upgrd apply --plan ./upgrd-out/upgrade-plan.json --source ./legacy-app --output ./upgrd-out
 ```
 
-Or use the pipeline with explicit confirmation:
+Or use the pipeline with explicit confirmation and approval:
 
 ```bash
 upgrd pipeline run --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out --serve-ui
-# Review preview in UI, then:
+# Review + save approval in UI (or: upgrd plan approve --output ./upgrd-out --source ./legacy-app)
 upgrd pipeline run --source ./legacy-app --war ./legacy-app.war --output ./upgrd-out --confirm --skip-verify
+```
+
+CI shortcut (mandatory steps only, no UI):
+
+```bash
+upgrd pipeline run ... --confirm --auto-approve-mandatory --skip-verify
 ```
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the M15–M20 roadmap to WAR-authoritative, approval-gated upgrades.

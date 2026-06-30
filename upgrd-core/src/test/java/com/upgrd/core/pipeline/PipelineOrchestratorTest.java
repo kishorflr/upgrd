@@ -33,6 +33,7 @@ class PipelineOrchestratorTest {
                 "java21",
                 "weblogic-14c",
                 true,
+                true,
                 false,
                 false,
                 false,
