@@ -5,6 +5,8 @@ import com.upgrd.cli.command.ApplyCommand;
 import com.upgrd.cli.command.ExportCommand;
 import com.upgrd.cli.command.PlanCommand;
 import com.upgrd.cli.command.ReportFailureCommand;
+import com.upgrd.cli.command.rewrite.RewriteCommand;
+import com.upgrd.cli.command.wildfly.WildFlyCommand;
 import com.upgrd.cli.command.RunCommand;
 import com.upgrd.cli.command.VerifyCommand;
 import picocli.CommandLine;
@@ -22,7 +24,9 @@ import picocli.CommandLine.Command;
                 VerifyCommand.class,
                 RunCommand.class,
                 ReportFailureCommand.class,
-                ExportCommand.class
+                ExportCommand.class,
+                WildFlyCommand.class,
+                RewriteCommand.class
         })
 public final class UpGrd implements Runnable {
 

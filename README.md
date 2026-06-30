@@ -64,11 +64,37 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
 | `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify` (SpotBugs + OWASP) |
+| `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
+| `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run` supported) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring, Spring 4→6, javax→jakarta, raw collections, security fixes |
-| **Recipes (planned)** | Full OpenRewrite AST engine, deeper Struts migration, SQL/deserialization rules |
+| **Recipes (planned)** | Deeper Struts migration, SQL/deserialization OpenRewrite rules |
+
+### WildFly (local smoke deploy)
+
+After `apply`, use Docker-backed WildFly under `migrated/deploy/wildfly/`:
+
+```bash
+upgrd wildfly start --output ./upgrd-out
+upgrd wildfly deploy --output ./upgrd-out --build
+upgrd wildfly status --output ./upgrd-out
+upgrd wildfly stop --output ./upgrd-out
+```
+
+WARs are hot-deployed via the `deployments/` volume mount (no `docker cp` required).
+
+### OpenRewrite (AST migrations)
+
+`apply` scaffolds `.upgrd/openrewrite.yml`. Run deeper refactors on demand:
+
+```bash
+upgrd rewrite run --output ./upgrd-out --dry-run
+upgrd rewrite run --output ./upgrd-out
+```
+
+POM plugin/BOM injection happens at `rewrite run` time so normal `mvn verify` stays lightweight.
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 

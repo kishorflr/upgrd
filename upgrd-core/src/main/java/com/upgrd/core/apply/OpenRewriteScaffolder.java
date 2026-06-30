@@ -42,11 +42,17 @@ public final class OpenRewriteScaffolder {
         return """
                 # OpenRewrite integration (UpGrd M5+)
 
-                UpGrd applies safe file-level recipes during `apply`. For deeper AST migrations, add the
-                OpenRewrite Maven plugin to `pom.xml` and run:
+                UpGrd applies safe file-level recipes during `apply`. For deeper AST migrations run:
 
                 ```bash
-                mvn -f pom.xml org.openrewrite.maven:rewrite-maven-plugin:run \\
+                upgrd rewrite run --output ../upgrd-out
+                upgrd rewrite run --output ../upgrd-out --dry-run
+                ```
+
+                Or via Maven directly:
+
+                ```bash
+                mvn org.openrewrite.maven:rewrite-maven-plugin:run \\
                   -Drewrite.activeRecipes=com.upgrd.migrated.UpgradeBaseline
                 ```
 

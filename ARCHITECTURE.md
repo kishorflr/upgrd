@@ -205,3 +205,4 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M3.5** | Design advisory engine (smells, layering suggestions) |
 | **M4** | `verify` + security scan + audit UI (dashboard, diffs, export) |
 | **M5** | Anti-pattern rules + PDF/JSON/HTML audit export + OpenRewrite scaffold |
+| **M5+** | `upgrd wildfly` CLI + `upgrd rewrite run` OpenRewrite Maven execution |
