@@ -21,17 +21,17 @@ public final class StrutsValidationIndex {
             "<form\\s+name=\"([^\"]+)\">(.*?)</form>",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern FIELD = Pattern.compile(
-            "property=\"([^\"]+)\"",
+            "<field\\s+property=\"([^\"]+)\"(?:\\s+depends=\"([^\"]+)\")?",
             Pattern.CASE_INSENSITIVE);
 
-    private final Map<String, List<String>> fieldsByForm = new LinkedHashMap<>();
+    private final Map<String, List<ValidationField>> fieldsByForm = new LinkedHashMap<>();
 
     public static StrutsValidationIndex empty() {
         return new StrutsValidationIndex(Map.of());
     }
 
     public static StrutsValidationIndex loadFromProject(Path projectRoot) throws IOException {
-        Map<String, List<String>> fields = new LinkedHashMap<>();
+        Map<String, List<ValidationField>> fields = new LinkedHashMap<>();
         if (!Files.isDirectory(projectRoot)) {
             return new StrutsValidationIndex(fields);
         }
@@ -49,15 +49,20 @@ public final class StrutsValidationIndex {
         return new StrutsValidationIndex(fields);
     }
 
-    static Map<String, List<String>> parse(String content) {
-        Map<String, List<String>> result = new LinkedHashMap<>();
+    static Map<String, List<ValidationField>> parse(String content) {
+        Map<String, List<ValidationField>> result = new LinkedHashMap<>();
         Matcher formMatcher = FORM.matcher(content);
         while (formMatcher.find()) {
             String formName = formMatcher.group(1);
-            List<String> properties = new ArrayList<>();
+            List<ValidationField> properties = new ArrayList<>();
             Matcher fieldMatcher = FIELD.matcher(formMatcher.group(2));
             while (fieldMatcher.find()) {
-                properties.add(fieldMatcher.group(1));
+                String property = fieldMatcher.group(1);
+                String dependsRaw = fieldMatcher.group(2);
+                List<String> depends = dependsRaw == null || dependsRaw.isBlank()
+                        ? List.of()
+                        : List.of(dependsRaw.split("\\s*,\\s*"));
+                properties.add(new ValidationField(property, depends));
             }
             if (!properties.isEmpty()) {
                 result.put(formName, List.copyOf(properties));
@@ -66,11 +71,22 @@ public final class StrutsValidationIndex {
         return result;
     }
 
-    private StrutsValidationIndex(Map<String, List<String>> fieldsByForm) {
+    private StrutsValidationIndex(Map<String, List<ValidationField>> fieldsByForm) {
         this.fieldsByForm.putAll(fieldsByForm);
     }
 
-    public List<String> fieldsFor(String formName) {
+    public List<ValidationField> fieldsFor(String formName) {
         return fieldsByForm.getOrDefault(formName, List.of());
+    }
+
+    public List<String> propertyNamesFor(String formName) {
+        return fieldsFor(formName).stream().map(ValidationField::property).toList();
+    }
+
+    public record ValidationField(String property, List<String> depends) {
+
+        public boolean hasRule(String rule) {
+            return depends.stream().anyMatch(d -> d.equalsIgnoreCase(rule));
+        }
     }
 }

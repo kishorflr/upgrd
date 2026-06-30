@@ -5,6 +5,7 @@
   </form-beans>
   <action-mappings>
     <action path="/user" type="com.example.UserAction" name="userForm" scope="request">
+      <forward name="input" path="/pages/login.jsp"/>
       <forward name="success" path="/pages/success.jsp"/>
     </action>
   </action-mappings>

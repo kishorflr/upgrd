@@ -213,3 +213,4 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M10** | Struts body-preserving controllers, SQL OpenRewrite scan plan, `pipeline run`, CI artifact |
 | **M11** | Struts paths from struts-config, `@PostMapping`/`@ModelAttribute`, `rewrite run --recipe`, release workflow, `pipeline run --serve-ui` |
 | **M12** | Typed form bean scaffolds, Thymeleaf view names from Struts forwards, `pipeline run --rewrite`, v1.1.0 release |
+| **M13** | Jakarta validation on form beans, GET/POST controller split, `pipeline run --rewrite-after-verify`, v1.2.0-SNAPSHOT |

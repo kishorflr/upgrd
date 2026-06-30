@@ -73,6 +73,10 @@ public final class PipelineRunCommand implements Callable<Integer> {
             description = "OpenRewrite recipe when --rewrite is set")
     private String rewriteRecipe;
 
+    @Option(names = "--rewrite-after-verify", defaultValue = "false",
+            description = "Run OpenRewrite after verify instead of after apply")
+    private boolean rewriteAfterVerify;
+
     @Override
     public Integer call() throws Exception {
         var result = new PipelineOrchestrator().run(new PipelineRequest(
@@ -90,7 +94,8 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 wildflyHttp,
                 rewrite,
                 rewriteDryRun,
-                rewriteRecipe));
+                rewriteRecipe,
+                rewriteAfterVerify));
 
         System.out.println("UpGrd pipeline complete.");
         System.out.printf("  Phases: %s%n", String.join(" → ", result.completedPhases()));

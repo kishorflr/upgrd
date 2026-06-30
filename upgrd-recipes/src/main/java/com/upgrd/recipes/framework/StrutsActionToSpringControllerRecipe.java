@@ -76,9 +76,12 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
             String body = executeMatcher.group(3).trim();
             String forward = executeMatcher.group(4);
             String viewName = mapping.resolveView(forward);
-            String method = buildControllerMethod(mapping, packageName, formType, formParam, body, viewName);
+            String method = buildControllerMethod(mapping, packageName, formType, formParam, body, forward, viewName);
             after = executeMatcher.replaceFirst(Matcher.quoteReplacement(method));
             after = addFormImportIfNeeded(after, mapping, packageName, formType);
+            if (mapping.hasForm() || !"ActionForm".equals(formType)) {
+                after = ensureImport(after, "import jakarta.validation.Valid;");
+            }
         }
 
         if (!after.contains("@Controller")) {
@@ -107,6 +110,7 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
             String formType,
             String formParam,
             String body,
+            String successForward,
             String viewName) {
         String path = mapping.path();
         boolean hasForm = mapping.hasForm()
@@ -115,15 +119,25 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
         if (hasForm) {
             String formName = mapping.hasForm() ? mapping.formName() : formParam;
             String modelType = resolveModelType(mapping, packageName, formType);
-            String param = "@ModelAttribute(\"" + formName + "\") " + modelType + " " + formParam;
+            String getParam = "@ModelAttribute(\"" + formName + "\") " + modelType + " " + formParam;
+            String postParam = "@Valid @ModelAttribute(\"" + formName + "\") " + modelType + " " + formParam;
+            String inputView = mapping.resolveInputView(successForward);
             return """
+                    @GetMapping("%s")
+                    public String showForm(%s) {
+                        // UpGrd: Struts input view for form '%s'
+                        return "%s";
+                    }
+
                     @PostMapping("%s")
-                    public String execute(%s, HttpServletRequest request, HttpServletResponse response) {
+                    public String submit(%s, HttpServletRequest request, HttpServletResponse response) {
                         // UpGrd: migrated from Struts Action — review form binding for '%s'
                     %s
                         return "%s";
                     }
-                    """.formatted(path, param, formName, indent(body, 8), viewName);
+                    """.formatted(
+                    path, getParam, formName, inputView,
+                    path, postParam, formName, indent(body, 8), viewName);
         }
         return """
                 @GetMapping("%s")

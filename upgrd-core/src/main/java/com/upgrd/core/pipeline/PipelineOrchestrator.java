@@ -60,12 +60,8 @@ public final class PipelineOrchestrator {
         phases.add("apply");
 
         OpenRewriteRunner.RewriteResult rewriteResult = null;
-        if (request.runRewrite()) {
-            rewriteResult = new OpenRewriteRunner().run(
-                    request.output(),
-                    request.rewriteDryRun(),
-                    false,
-                    request.rewriteRecipe());
+        if (request.runRewrite() && !request.rewriteAfterVerify()) {
+            rewriteResult = runRewrite(request);
             phases.add("rewrite");
             if (!rewriteResult.success()) {
                 return new PipelineResult(false, phases, planFile, applyReport, null, rewriteResult);
@@ -81,10 +77,29 @@ public final class PipelineOrchestrator {
                     request.wildflyDeploy(),
                     request.wildflyHttp()));
             phases.add("verify");
+            if (!verifyResult.passed()) {
+                return new PipelineResult(false, phases, planFile, applyReport, verifyResult, rewriteResult);
+            }
         }
 
-        boolean success = verifyResult == null || verifyResult.passed();
-        return new PipelineResult(success, phases, planFile, applyReport, verifyResult, rewriteResult);
+        if (request.runRewrite() && request.rewriteAfterVerify()) {
+            rewriteResult = runRewrite(request);
+            phases.add("rewrite");
+            if (!rewriteResult.success()) {
+                return new PipelineResult(false, phases, planFile, applyReport, verifyResult, rewriteResult);
+            }
+        }
+
+        return new PipelineResult(true, phases, planFile, applyReport, verifyResult, rewriteResult);
+    }
+
+    private OpenRewriteRunner.RewriteResult runRewrite(PipelineRequest request)
+            throws Exception {
+        return new OpenRewriteRunner().run(
+                request.output(),
+                request.rewriteDryRun(),
+                false,
+                request.rewriteRecipe());
     }
 
     public record PipelineRequest(
@@ -102,7 +117,8 @@ public final class PipelineOrchestrator {
             boolean wildflyHttp,
             boolean runRewrite,
             boolean rewriteDryRun,
-            String rewriteRecipe) {
+            String rewriteRecipe,
+            boolean rewriteAfterVerify) {
     }
 
     public record PipelineResult(

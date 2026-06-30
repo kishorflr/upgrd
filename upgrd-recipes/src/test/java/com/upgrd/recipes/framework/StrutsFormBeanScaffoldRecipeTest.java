@@ -47,5 +47,38 @@ class StrutsFormBeanScaffoldRecipeTest {
         assertTrue(source.contains("private String username"));
         assertTrue(source.contains("private String email"));
         assertTrue(source.contains("getUsername"));
+        assertTrue(source.contains("@NotNull"));
+    }
+
+    @Test
+    void scaffoldsEmailValidation() throws Exception {
+        Path webInf = projectRoot.resolve("src/main/webapp/WEB-INF");
+        Files.createDirectories(webInf);
+        Files.writeString(webInf.resolve("struts-config.xml"), """
+                <struts-config>
+                  <form-beans>
+                    <form-bean name="userForm" type="com.example.UserForm"/>
+                  </form-beans>
+                </struts-config>
+                """);
+        Files.writeString(webInf.resolve("validation.xml"), """
+                <form-validation>
+                  <formset>
+                    <form name="userForm">
+                      <field property="email" depends="required,email"/>
+                    </form>
+                  </formset>
+                </form-validation>
+                """);
+        Files.createDirectories(projectRoot.resolve("src/main/java/com/example"));
+        Files.writeString(projectRoot.resolve("src/main/java/com/example/UserAction.java"), """
+                package com.example;
+                public class UserAction {}
+                """);
+
+        var changes = new StrutsFormBeanScaffoldRecipe().generateChanges(projectRoot);
+        String source = changes.get(0).after();
+        assertTrue(source.contains("@NotNull"));
+        assertTrue(source.contains("@Email"));
     }
 }

@@ -2,14 +2,12 @@ package com.upgrd.recipes.framework;
 
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StrutsValidationIndexTest {
 
     @Test
-    void parsesValidationFields() {
+    void parsesValidationFieldsWithDepends() {
         var fields = StrutsValidationIndex.parse("""
                 <form-validation>
                   <formset>
@@ -20,6 +18,9 @@ class StrutsValidationIndexTest {
                   </formset>
                 </form-validation>
                 """);
-        assertTrue(fields.get("userForm").containsAll(java.util.List.of("username", "email")));
+        var userFields = fields.get("userForm");
+        assertTrue(userFields.get(0).hasRule("required"));
+        assertTrue(userFields.get(1).hasRule("email"));
+        assertTrue(userFields.get(1).hasRule("required"));
     }
 }

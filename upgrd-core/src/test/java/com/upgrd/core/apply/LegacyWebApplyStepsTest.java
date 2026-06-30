@@ -41,9 +41,14 @@ class LegacyWebApplyStepsTest {
 
         Path userForm = output.resolve("migrated/app-web/src/main/java/com/example/UserForm.java");
         assertTrue(Files.isRegularFile(userForm), "form bean should be scaffolded");
+        String formSource = Files.readString(userForm);
+        assertTrue(formSource.contains("@NotNull"), formSource);
 
         Path userAction = output.resolve("migrated/app-web/src/main/java/com/example/UserAction.java");
         String action = Files.readString(userAction);
+        assertTrue(action.contains("@GetMapping") && action.contains("showForm"), action);
+        assertTrue(action.contains("@PostMapping") && action.contains("submit"), action);
+        assertTrue(action.contains("return \"pages/login\""), action);
         assertTrue(action.contains("return \"pages/success\""), action);
         assertTrue(action.contains("UserForm"), action);
     }

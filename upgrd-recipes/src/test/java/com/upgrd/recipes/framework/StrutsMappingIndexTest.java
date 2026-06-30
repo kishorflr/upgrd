@@ -19,6 +19,7 @@ class StrutsMappingIndexTest {
                   </form-beans>
                   <action-mappings>
                     <action path="/user" type="com.example.UserAction" name="userForm" scope="request">
+                      <forward name="input" path="/pages/login.jsp"/>
                       <forward name="success" path="/pages/success.jsp"/>
                     </action>
                     <action path="/login" type="com.example.LoginAction"/>
@@ -37,6 +38,7 @@ class StrutsMappingIndexTest {
         assertEquals("com.example.UserForm", user.formBeanType());
         assertEquals("/pages/success.jsp", user.forwards().get("success"));
         assertEquals("pages/success", user.resolveView("success"));
+        assertEquals("pages/login", user.resolveInputView("success"));
         assertEquals("/login", mappings.get("com.example.LoginAction").path());
         assertTrue(!mappings.get("com.example.LoginAction").hasForm());
     }

@@ -231,6 +231,22 @@ public final class StrutsMappingIndex {
             return jspPathToViewName(path);
         }
 
+        /** Thymeleaf view for the Struts input / form display forward. */
+        public String resolveInputView(String successForwardName) {
+            if (forwards.containsKey("input")) {
+                return resolveView("input");
+            }
+            for (Map.Entry<String, String> entry : forwards.entrySet()) {
+                String name = entry.getKey();
+                if (!name.equalsIgnoreCase(successForwardName)
+                        && !name.equalsIgnoreCase("failure")
+                        && !name.equalsIgnoreCase("error")) {
+                    return jspPathToViewName(entry.getValue());
+                }
+            }
+            return resolveView(successForwardName);
+        }
+
         public String simpleFormType() {
             if (formBeanType == null || formBeanType.isBlank()) {
                 return inferFormClassName(formName);

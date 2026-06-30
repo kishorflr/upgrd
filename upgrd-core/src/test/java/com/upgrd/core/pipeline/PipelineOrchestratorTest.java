@@ -39,7 +39,8 @@ class PipelineOrchestratorTest {
                 false,
                 false,
                 false,
-                OpenRewriteRunner.DEFAULT_RECIPE));
+                OpenRewriteRunner.DEFAULT_RECIPE,
+                false));
 
         assertTrue(result.completedPhases().containsAll(List.of("analyze", "plan", "apply")));
         assertTrue(Files.isRegularFile(output.resolve("migrated/pom.xml")));
