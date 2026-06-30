@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.ChangeClassification;
+import com.upgrd.core.model.ApiCompatibilityHit;
+import com.upgrd.core.model.ApiCompatibilityReport;
+import com.upgrd.core.model.ApiRemediationType;
 import com.upgrd.core.model.BuildSystem;
 import com.upgrd.core.model.LoggingFramework;
 import com.upgrd.core.model.ProjectDiscovery;
@@ -25,6 +28,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public final class UpgradePlanner {
 
@@ -36,7 +40,7 @@ public final class UpgradePlanner {
             String productionServer,
             boolean dryRun,
             SecurityReport security) {
-        return plan(discovery, targetJava, productionServer, dryRun, security, null, null);
+        return plan(discovery, targetJava, productionServer, dryRun, security, null, null, null);
     }
 
     public UpgradePlan plan(
@@ -47,6 +51,18 @@ public final class UpgradePlanner {
             SecurityReport security,
             SyncReport sync,
             UsageReport usage) {
+        return plan(discovery, targetJava, productionServer, dryRun, security, sync, usage, null);
+    }
+
+    public UpgradePlan plan(
+            ProjectDiscovery discovery,
+            String targetJava,
+            String productionServer,
+            boolean dryRun,
+            SecurityReport security,
+            SyncReport sync,
+            UsageReport usage,
+            ApiCompatibilityReport apiCompatibility) {
         List<UpgradeStep> steps = new ArrayList<>();
         ProjectProfile profile = discovery.profile();
         TechnologyFingerprint fp = discovery.fingerprint();
@@ -87,6 +103,7 @@ public final class UpgradePlanner {
 
         addSecurityRemediationSteps(steps, security);
         addWarSyncSteps(steps, sync, usage);
+        addApiCompatibilitySteps(steps, apiCompatibility);
 
         if (discovery.containsWeblogicApi() || fp.servletApi() == ServletApi.JAVAX) {
             steps.add(step(
@@ -186,7 +203,64 @@ public final class UpgradePlanner {
                 productionServer,
                 "wildfly",
                 profile,
-                enrichWithWarContext(steps, sync, usage));
+                enrichWithApiHits(enrichWithWarContext(steps, sync, usage), apiCompatibility));
+    }
+
+    private void addApiCompatibilitySteps(List<UpgradeStep> steps, ApiCompatibilityReport api) {
+        if (api == null || api.hits().isEmpty()) {
+            return;
+        }
+        long manual = api.countByType(ApiRemediationType.MANUAL);
+        long unsupported = api.countByType(ApiRemediationType.UNSUPPORTED);
+        if (manual + unsupported > 0) {
+            List<String> evidence = new ArrayList<>();
+            evidence.add(api.summary());
+            api.hits().stream()
+                    .filter(h -> h.remediationType() == ApiRemediationType.MANUAL
+                            || h.remediationType() == ApiRemediationType.UNSUPPORTED)
+                    .limit(8)
+                    .forEach(h -> evidence.add(h.file() + ":" + h.lineRange().getFirst()
+                            + " — " + h.api() + " → " + h.replacement()));
+            steps.add(step(
+                    "api-manual-rewrite",
+                    "api",
+                    "Manual API rewrites required (catalog hits without automated recipe)",
+                    "upgrd:ApiManualReview",
+                    api.summary(),
+                    List.copyOf(evidence),
+                    StepMode.ADVISORY));
+        }
+    }
+
+    private List<UpgradeStep> enrichWithApiHits(List<UpgradeStep> steps, ApiCompatibilityReport api) {
+        if (api == null || api.hits().isEmpty()) {
+            return steps;
+        }
+        Map<String, List<ApiCompatibilityHit>> byStep = new java.util.LinkedHashMap<>();
+        for (ApiCompatibilityHit hit : api.hits()) {
+            if (hit.planStepId() != null && !hit.planStepId().isBlank()) {
+                byStep.computeIfAbsent(hit.planStepId(), k -> new ArrayList<>()).add(hit);
+            }
+        }
+        if (byStep.isEmpty()) {
+            return steps;
+        }
+        List<UpgradeStep> enriched = new ArrayList<>();
+        for (UpgradeStep step : steps) {
+            List<ApiCompatibilityHit> linked = byStep.get(step.id());
+            if (linked == null || linked.isEmpty()) {
+                enriched.add(step);
+                continue;
+            }
+            List<String> evidence = new ArrayList<>(step.evidence());
+            evidence.add("api-hits=" + linked.size());
+            linked.stream().limit(5).forEach(h ->
+                    evidence.add(h.file() + ":" + h.lineRange().getFirst() + " " + h.api()
+                            + " → " + h.replacement()));
+            enriched.add(rebuildStep(step, evidence, step.reason()
+                    + " — " + linked.size() + " catalog hit(s) in source"));
+        }
+        return enriched;
     }
 
     private void addWarSyncSteps(List<UpgradeStep> steps, SyncReport sync, UsageReport usage) {
@@ -459,7 +533,7 @@ public final class UpgradePlanner {
             case "openrewrite-dry-run", "openrewrite-apply", "openrewrite-sql-scan",
                     "wildfly-local", "weblogic-adapters", "security-verify",
                     "test-scaffold", "automation-ready", "openrewrite-scaffold",
-                    "war-source-sync", "war-lib-align" -> ChangeClassification.OPTIONAL;
+                    "war-source-sync", "war-lib-align", "api-manual-rewrite" -> ChangeClassification.OPTIONAL;
             default -> ChangeClassification.RECOMMENDED;
         };
     }

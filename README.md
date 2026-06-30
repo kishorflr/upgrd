@@ -54,7 +54,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 
 | Command | Status |
 |---------|--------|
-| `analyze` | Profile detection, fingerprint, WAR/source sync + severity, `WEB-INF/lib` drift, design advisory, security scan |
+| `analyze` | Profile detection, fingerprint, WAR/sync severity, API compatibility catalog, security scan |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `plan preview` | Dry-run file diffs (before/after) without applying — `change-ledger-preview.json` |
 | `plan approve` | Create `approved-plan.json` (mandatory-only by default; override with flags) |

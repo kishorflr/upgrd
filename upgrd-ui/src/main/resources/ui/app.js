@@ -325,6 +325,45 @@ async function saveApproval() {
   }
 }
 
+function renderApiCompatibility(report) {
+  const el_ = document.getElementById('api-compatibility');
+  el_.innerHTML = '';
+  if (!report || !report.hits || report.hits.length === 0) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> to generate api-compatibility-report.json</p>';
+    return;
+  }
+  el_.appendChild(el('p', null, report.summary || ('Total hits: ' + report.totalHits)));
+  if (report.countsByRemediationType) {
+    const dl = el('dl', 'grid');
+    Object.entries(report.countsByRemediationType).forEach(([k, v]) => {
+      if (v > 0) {
+        dl.appendChild(el('dt', null, k));
+        dl.appendChild(el('dd', null, String(v)));
+      }
+    });
+    el_.appendChild(dl);
+  }
+  report.hits.forEach(hit => {
+    const div = el('div', 'change');
+    const h = el('h3');
+    h.textContent = hit.file + ':' + (hit.lineRange && hit.lineRange[0]) + ' — ' + hit.api;
+    h.prepend(badge(hit.remediationType, 'api-' + hit.remediationType.toLowerCase()));
+    div.appendChild(h);
+    if (hit.planStepId) {
+      div.appendChild(el('p', 'muted', 'Plan step: ' + hit.planStepId
+          + (hit.recipeId ? ' | Recipe: ' + hit.recipeId : '')));
+    }
+    div.appendChild(el('div', 'reason', hit.description || ''));
+    if (hit.replacement) {
+      div.appendChild(el('p', null, 'Replacement: ' + hit.replacement));
+    }
+    if (hit.snippet) {
+      div.appendChild(el('pre', 'diff-block', hit.snippet));
+    }
+    el_.appendChild(div);
+  });
+}
+
 function renderDesign(report) {
   const el_ = document.getElementById('design-advisory');
   el_.innerHTML = '';
@@ -542,13 +581,14 @@ document.querySelectorAll('#review-filters .filter').forEach(btn => {
 document.getElementById('save-approval').addEventListener('click', saveApproval);
 
 async function init() {
-  const [analysis, plan, ledger, previewReport, previewLedger, approval, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
+  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
     fetchReport('upgrade-preview-report.json'),
     fetchReport('change-ledger-preview.json'),
     fetchReport('approved-plan.json'),
+    fetchReport('api-compatibility-report.json'),
     fetchReport('design-advisory.json'),
     fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
@@ -562,6 +602,7 @@ async function init() {
   renderPreviewSummary(previewReport);
   renderPreviewChanges(previewLedger);
   renderApproval(plan, approval);
+  renderApiCompatibility(apiCompat);
   renderDesign(design);
   renderAntiPatterns(antiPatterns);
   renderUsage(analysis);

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.antipattern.AntiPatternAnalyzer;
+import com.upgrd.core.compat.ApiCompatibilityAnalyzer;
 import com.upgrd.core.design.DesignAdvisoryAnalyzer;
 import com.upgrd.core.discovery.ProjectDiscoveryService;
 import com.upgrd.core.documentation.ApplicationDocumenter;
@@ -29,11 +30,12 @@ import java.util.Set;
 
 public final class AnalyzeEngine {
 
-    public static final String VERSION = "1.5.0-SNAPSHOT";
+    public static final String VERSION = "1.6.0-SNAPSHOT";
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();
     private final AntiPatternAnalyzer antiPatternAnalyzer = new AntiPatternAnalyzer();
+    private final ApiCompatibilityAnalyzer apiCompatibilityAnalyzer = new ApiCompatibilityAnalyzer();
     private final SecurityAnalyzer securityAnalyzer = new SecurityAnalyzer();
     private final ApplicationDocumenter applicationDocumenter = new ApplicationDocumenter();
     private final DocumentationWriter documentationWriter = new DocumentationWriter();
@@ -67,12 +69,13 @@ public final class AnalyzeEngine {
                 discovery.fingerprint());
         var antiPatterns = antiPatternAnalyzer.analyze(
                 input.sourceRoot(), discovery.sourceRoots(), discovery.profile());
+        var apiCompatibility = apiCompatibilityAnalyzer.analyze(input.sourceRoot(), discovery);
         var security = securityAnalyzer.analyze(input.sourceRoot(), discovery);
 
         AnalysisReport report = new AnalysisReport(
                 VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
 
-        writeReport(report, security, antiPatterns, input.sourceRoot(), input.outputDir());
+        writeReport(report, security, antiPatterns, apiCompatibility, input.sourceRoot(), input.outputDir());
         return report;
     }
 
@@ -88,11 +91,13 @@ public final class AnalyzeEngine {
             AnalysisReport report,
             com.upgrd.core.model.SecurityReport security,
             com.upgrd.core.model.AntiPatternReport antiPatterns,
+            com.upgrd.core.model.ApiCompatibilityReport apiCompatibility,
             Path sourceRoot,
             Path outputDir) throws IOException {
         writeReport(report, outputDir);
         reportWriter.writeSecurityReport(security, outputDir);
         reportWriter.writeAntiPatternReport(antiPatterns, outputDir);
+        reportWriter.writeApiCompatibilityReport(apiCompatibility, outputDir);
         mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
         mapper.writeValue(outputDir.resolve("sync-report.json").toFile(), report.sync());
         var documentation = applicationDocumenter.documentAnalyzePhase(

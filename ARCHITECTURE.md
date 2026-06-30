@@ -20,7 +20,7 @@ Discover → Analyze → Plan (dry-run) → Preview → Confirm → Apply → Ve
 | Phase | Purpose |
 |-------|---------|
 | Discover | Detect build system, Java version, technology fingerprint, project profile |
-| Analyze | WAR/source sync, log usage mapping, design advisory, security scan, agent documentation |
+| Analyze | WAR/source sync, log usage mapping, API compatibility catalog, design advisory, security scan, agent documentation |
 | Plan | Profile-aware recipe list with per-step reasoning + security remediation steps |
 | Preview | Dry-run file recipes; before/after snippets in `change-ledger-preview.json` (M15) |
 | Confirm | User approves steps in `approved-plan.json` via CLI or audit UI (M16) |
@@ -222,7 +222,7 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M15** | Review-first upgrade: `plan preview`, change taxonomy (mandatory/recommended/optional/rewrite), pipeline stops at preview unless `--confirm`, UI Review tab |
 | **M16** | Approval gate: `approved-plan.json`, `plan approve`, apply filters by approval, UI save + `--auto-approve-mandatory` |
 | **M17** | WAR enrichment: `WEB-INF/lib` deps, sync severity, planner uses analyze sync/usage |
-| **M18** | API compatibility catalog (unsupported → replacement → manual), linked to source hits |
+| **M18** | API compatibility catalog (`api-compatibility-report.json`), planner links hits to steps, UI API tab |
 | **M19** | WAR-authoritative apply (merge/decompile/conflict policy) |
 | **M20** | E2E fixture with WAR+logs+source, docs, release |
 
@@ -243,6 +243,6 @@ analyze (logs + WAR + source) → plan → preview (before/after) → user confi
 | **M19** | Apply merges production WAR truth into migrated source (conflict markers, decompile policy) |
 | **M20** | End-to-end fixture, operator docs, tagged release |
 
-**Current gaps after M17:** Apply still uses source tree; WAR informs plan/sync only. M19 adds WAR-authoritative apply.
+**Current gaps after M18:** Apply still uses source tree; catalog informs plan/review only. M19 adds WAR-authoritative apply.
 
 **Recommended workflow today:** `analyze` → `plan upgrade --dry-run` → `plan preview` → UI Review tab → `plan upgrade --dry-run=false` → `apply` — or `pipeline run --serve-ui` then re-run with `--confirm`.

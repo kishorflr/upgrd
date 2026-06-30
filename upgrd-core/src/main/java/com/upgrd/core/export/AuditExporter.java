@@ -31,6 +31,7 @@ public final class AuditExporter {
             "usage-report.json",
             "security-report.json",
             "anti-pattern-report.json",
+            "api-compatibility-report.json",
             "app-documentation.json");
 
     private final ObjectMapper mapper = new ObjectMapper()

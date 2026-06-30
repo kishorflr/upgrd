@@ -193,3 +193,8 @@ footer {
 .approval-row.disabled {
   opacity: 0.55;
 }
+
+.badge-api-automated { background: #23863633; color: var(--ok); }
+.badge-api-replacement { background: #388bfd33; color: var(--accent); }
+.badge-api-manual { background: #9e6a0333; color: var(--warn); }
+.badge-api-unsupported { background: #da363333; color: var(--danger); }

@@ -52,7 +52,8 @@ public final class PlanPreviewCommand implements Callable<Integer> {
             ReportWriter reportWriter = new ReportWriter();
             var sync = reportWriter.readSyncReport(output);
             var usage = reportWriter.readUsageReport(output);
-            plan = new UpgradePlanner().plan(discovery, target, server, true, security, sync, usage);
+            var apiCompatibility = reportWriter.readApiCompatibilityReport(output);
+            plan = new UpgradePlanner().plan(discovery, target, server, true, security, sync, usage, apiCompatibility);
             new UpgradePlanner().writePlan(plan, output);
         }
 

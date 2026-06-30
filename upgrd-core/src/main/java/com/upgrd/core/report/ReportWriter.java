@@ -47,6 +47,24 @@ public final class ReportWriter {
         return file;
     }
 
+    public Path writeApiCompatibilityReport(
+            com.upgrd.core.model.ApiCompatibilityReport report,
+            Path outputDir) throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("api-compatibility-report.json");
+        mapper.writeValue(file.toFile(), report);
+        return file;
+    }
+
+    public com.upgrd.core.model.ApiCompatibilityReport readApiCompatibilityReport(Path outputDir)
+            throws IOException {
+        Path file = outputDir.resolve("api-compatibility-report.json");
+        if (Files.isRegularFile(file)) {
+            return mapper.readValue(file.toFile(), com.upgrd.core.model.ApiCompatibilityReport.class);
+        }
+        return null;
+    }
+
     public Path writeSecurityReport(SecurityReport report, Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
         Path file = outputDir.resolve("security-report.json");

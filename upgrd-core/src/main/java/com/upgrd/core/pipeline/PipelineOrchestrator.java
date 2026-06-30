@@ -3,6 +3,7 @@ package com.upgrd.core.pipeline;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.apply.ApplyEngine;
 import com.upgrd.core.model.ApprovedPlan;
+import com.upgrd.core.model.ApiCompatibilityReport;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
 import com.upgrd.core.model.ApplyReport;
@@ -46,6 +47,7 @@ public final class PipelineOrchestrator {
         new ReportWriter().writeSecurityReport(security, request.output());
 
         UpgradePlanner planner = new UpgradePlanner();
+        ApiCompatibilityReport apiCompatibility = new ReportWriter().readApiCompatibilityReport(request.output());
         UpgradePlan plan = planner.plan(
                 discovery,
                 request.targetJava(),
@@ -53,7 +55,8 @@ public final class PipelineOrchestrator {
                 false,
                 security,
                 analysis.sync(),
-                analysis.usage());
+                analysis.usage(),
+                apiCompatibility);
         Path planFile = planner.writePlan(plan, request.output());
         new ReportWriter().writeChangeLedger(
                 new ReportWriter().previewFromPlan(plan, request.source()),

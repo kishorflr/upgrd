@@ -60,8 +60,9 @@ public final class PlanCommand implements Runnable {
             ReportWriter reportWriter = new ReportWriter();
             var sync = reportWriter.readSyncReport(output);
             var usage = reportWriter.readUsageReport(output);
+            var apiCompatibility = reportWriter.readApiCompatibilityReport(output);
             UpgradePlanner planner = new UpgradePlanner();
-            UpgradePlan plan = planner.plan(discovery, target, server, dryRun, security, sync, usage);
+            UpgradePlan plan = planner.plan(discovery, target, server, dryRun, security, sync, usage, apiCompatibility);
             Path planFile = planner.writePlan(plan, output);
 
             reportWriter.writeSecurityReport(security, output);
@@ -78,6 +79,9 @@ public final class PlanCommand implements Runnable {
             System.out.printf("  Security findings: %d (auto-fixable steps added to plan)%n", security.openCount());
             if (sync != null && sync.severity() != null) {
                 System.out.printf("  WAR sync: %s — %s%n", sync.severity(), sync.severityReason());
+            }
+            if (apiCompatibility != null && apiCompatibility.totalHits() > 0) {
+                System.out.printf("  API catalog: %s%n", apiCompatibility.summary());
             }
             System.out.printf("  Change ledger preview: %s/change-ledger.json%n", output.toAbsolutePath());
             return 0;
