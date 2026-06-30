@@ -120,6 +120,50 @@ public final class ReportWriter {
         return null;
     }
 
+    public com.upgrd.core.model.WarContext readWarContext(Path outputDir) throws IOException {
+        Path file = outputDir.resolve("war-context.json");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        return mapper.readValue(file.toFile(), com.upgrd.core.model.WarContext.class);
+    }
+
+    public com.upgrd.core.model.WarApplyOptions resolveWarApplyOptions(
+            Path outputDir,
+            Path warOverride,
+            com.upgrd.core.model.WarConflictPolicy policyOverride) throws IOException {
+        com.upgrd.core.model.WarContext context = readWarContext(outputDir);
+        com.upgrd.core.model.SyncReport sync = readSyncReport(outputDir);
+        Path war = warOverride;
+        if (war == null && context != null && context.warPath() != null) {
+            war = Path.of(context.warPath());
+        }
+        if (war == null || sync == null) {
+            return com.upgrd.core.model.WarApplyOptions.disabled();
+        }
+        com.upgrd.core.model.WarConflictPolicy policy = policyOverride != null
+                ? policyOverride
+                : (context.defaultPolicy() != null ? context.defaultPolicy()
+                : com.upgrd.core.model.WarConflictPolicy.WAR_WINS);
+        return new com.upgrd.core.model.WarApplyOptions(war, sync, policy);
+    }
+
+    public Path writeWarMergeReport(com.upgrd.core.model.WarMergeReport report, Path outputDir)
+            throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("war-merge-report.json");
+        mapper.writeValue(file.toFile(), report);
+        return file;
+    }
+
+    public com.upgrd.core.model.WarMergeReport readWarMergeReport(Path outputDir) throws IOException {
+        Path file = outputDir.resolve("war-merge-report.json");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        return mapper.readValue(file.toFile(), com.upgrd.core.model.WarMergeReport.class);
+    }
+
     public Path writeChangeLedger(ChangeLedger ledger, Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
         Path file = outputDir.resolve("change-ledger.json");

@@ -28,7 +28,7 @@ public final class PlanPreviewEngine {
     private static final java.util.Set<String> SCAFFOLD_ONLY = java.util.Set.of(
             "convert-maven", "wildfly-local", "weblogic-adapters", "security-verify",
             "openrewrite-scaffold", "openrewrite-dry-run", "thymeleaf-wiring",
-            "test-scaffold", "automation-ready");
+            "test-scaffold", "automation-ready", "war-authoritative-merge");
 
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();

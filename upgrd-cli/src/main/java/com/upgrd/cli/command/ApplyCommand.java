@@ -4,7 +4,10 @@ import com.upgrd.core.apply.ApplyEngine;
 import com.upgrd.core.model.ApprovedPlan;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.UpgradePlan;
+import com.upgrd.core.model.WarApplyOptions;
+import com.upgrd.core.model.WarConflictPolicy;
 import com.upgrd.core.plan.PlanApprovalService;
+import com.upgrd.core.report.ReportWriter;
 import com.upgrd.recipes.RecipeCatalog;
 import com.upgrd.recipes.RecipeDefinition;
 import picocli.CommandLine.Command;
@@ -35,6 +38,13 @@ public final class ApplyCommand implements Callable<Integer> {
             description = "Apply all automated steps without approved-plan.json")
     private boolean skipApproval;
 
+    @Option(names = "--war", description = "Production WAR for authoritative merge (default: war-context.json from analyze)")
+    private Path war;
+
+    @Option(names = "--war-policy", defaultValue = "war-wins",
+            description = "Conflict policy: war-wins, source-wins, mark-conflict")
+    private String warPolicy;
+
     @Override
     public Integer call() throws Exception {
         if (!Files.isRegularFile(plan)) {
@@ -62,7 +72,12 @@ public final class ApplyCommand implements Callable<Integer> {
                     step.category(), step.description(), step.recipe(), status, gate);
         });
 
-        ApplyReport report = engine.apply(upgradePlan, source, output, approval);
+        ApplyReport report = engine.apply(
+                upgradePlan,
+                source,
+                output,
+                approval,
+                new ReportWriter().resolveWarApplyOptions(output, war, parseWarPolicy(warPolicy)));
         Path reportFile = output.resolve("apply-report.json");
 
         System.out.printf("  Migrated layout: %s%n", report.migratedRoot());
@@ -86,5 +101,14 @@ public final class ApplyCommand implements Callable<Integer> {
         ApprovedPlan approval = service.load(file);
         service.validate(approval, plan);
         return approval;
+    }
+
+    private WarConflictPolicy parseWarPolicy(String value) {
+        return switch (value.toLowerCase().replace('_', '-')) {
+            case "war-wins" -> WarConflictPolicy.WAR_WINS;
+            case "source-wins" -> WarConflictPolicy.SOURCE_WINS;
+            case "mark-conflict" -> WarConflictPolicy.MARK_CONFLICT;
+            default -> throw new IllegalArgumentException("Unknown war policy: " + value);
+        };
     }
 }

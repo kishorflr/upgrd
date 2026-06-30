@@ -104,6 +104,7 @@ public final class UpgradePlanner {
         addSecurityRemediationSteps(steps, security);
         addWarSyncSteps(steps, sync, usage);
         addApiCompatibilitySteps(steps, apiCompatibility);
+        addWarAuthoritativeMergeStep(steps, sync);
 
         if (discovery.containsWeblogicApi() || fp.servletApi() == ServletApi.JAVAX) {
             steps.add(step(
@@ -204,6 +205,34 @@ public final class UpgradePlanner {
                 "wildfly",
                 profile,
                 enrichWithApiHits(enrichWithWarContext(steps, sync, usage), apiCompatibility));
+    }
+
+    private void addWarAuthoritativeMergeStep(List<UpgradeStep> steps, SyncReport sync) {
+        if (sync == null || sync.severity() == SyncSeverity.NONE) {
+            return;
+        }
+        if (sync.onlyInWar().isEmpty() && sync.onlyInWarLibs().isEmpty()) {
+            return;
+        }
+        UpgradeStep mergeStep = step(
+                "war-authoritative-merge",
+                "sync",
+                "Merge production WAR classes and WEB-INF/lib into migrated layout",
+                "upgrd:WarAuthoritativeMerge",
+                "Production WAR is authoritative — " + sync.severityReason(),
+                List.of(
+                        "severity=" + sync.severity(),
+                        "war-only-classes=" + sync.onlyInWar().size(),
+                        "war-only-libs=" + sync.onlyInWarLibs().size()),
+                StepMode.AUTOMATED);
+        int insertAt = 0;
+        for (int i = 0; i < steps.size(); i++) {
+            if ("convert-maven".equals(steps.get(i).id())) {
+                insertAt = i + 1;
+                break;
+            }
+        }
+        steps.add(insertAt, mergeStep);
     }
 
     private void addApiCompatibilitySteps(List<UpgradeStep> steps, ApiCompatibilityReport api) {
@@ -529,7 +558,7 @@ public final class UpgradePlanner {
         }
         return switch (stepId) {
             case "convert-maven", "upgrade-java", "migrate-log4j1", "portable-jakarta",
-                    "remediate-weak-crypto", "remediate-secrets" -> ChangeClassification.MANDATORY;
+                    "remediate-weak-crypto", "remediate-secrets", "war-authoritative-merge" -> ChangeClassification.MANDATORY;
             case "openrewrite-dry-run", "openrewrite-apply", "openrewrite-sql-scan",
                     "wildfly-local", "weblogic-adapters", "security-verify",
                     "test-scaffold", "automation-ready", "openrewrite-scaffold",

@@ -51,6 +51,7 @@ class UpgradePlannerWarSyncTest {
 
         assertTrue(plan.steps().stream().anyMatch(s -> s.id().equals("war-source-sync")));
         assertTrue(plan.steps().stream().anyMatch(s -> s.id().equals("war-lib-align")));
+        assertTrue(plan.steps().stream().anyMatch(s -> s.id().equals("war-authoritative-merge")));
         assertTrue(plan.steps().stream()
                 .filter(s -> s.id().equals("test-scaffold"))
                 .anyMatch(s -> s.evidence().stream().anyMatch(e -> e.startsWith("war-hotpath:"))));

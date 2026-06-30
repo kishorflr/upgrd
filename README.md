@@ -58,7 +58,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `plan preview` | Dry-run file diffs (before/after) without applying — `change-ledger-preview.json` |
 | `plan approve` | Create `approved-plan.json` (mandatory-only by default; override with flags) |
-| `apply` | Source migration; uses `approved-plan.json` when present (`--skip-approval` for legacy) |
+| `apply` | Source migration; WAR merge with `--war` / `war-context.json`; `--war-policy war-wins|source-wins|mark-conflict` |
 | `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
 | `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |

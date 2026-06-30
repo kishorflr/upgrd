@@ -82,7 +82,9 @@ public final class PipelineOrchestrator {
         approvalService.validate(approval, plan);
 
         ApplyEngine applyEngine = new ApplyEngine();
-        ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output(), approval);
+        var warOptions = new ReportWriter().resolveWarApplyOptions(
+                request.output(), request.war(), com.upgrd.core.model.WarConflictPolicy.WAR_WINS);
+        ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output(), approval, warOptions);
         applyEngine.writeReport(applyReport, request.output());
         phases.add("apply");
 

@@ -16,9 +16,12 @@ import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
 import com.upgrd.core.model.UsageReport;
+import com.upgrd.core.model.WarApplyOptions;
+import com.upgrd.core.model.WarMergeReport;
 import com.upgrd.core.report.ReportWriter;
 import com.upgrd.core.plan.PlanApprovalService;
 import com.upgrd.core.security.SecurityReportMerger;
+import com.upgrd.core.war.WarAuthoritativeMerger;
 import com.upgrd.recipes.FileRecipe;
 import com.upgrd.recipes.RecipeCatalog;
 import com.upgrd.recipes.RecipeDefinition;
@@ -54,6 +57,7 @@ public final class ApplyEngine {
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
     private final RecipeCatalog recipeCatalog = new RecipeCatalog();
+    private final WarAuthoritativeMerger warAuthoritativeMerger = new WarAuthoritativeMerger();
 
     public UpgradePlan loadPlan(Path planFile) throws IOException {
         return mapper.readValue(planFile.toFile(), UpgradePlan.class);
@@ -65,6 +69,15 @@ public final class ApplyEngine {
 
     public ApplyReport apply(UpgradePlan plan, Path sourceRoot, Path outputDir, ApprovedPlan approval)
             throws IOException {
+        return apply(plan, sourceRoot, outputDir, approval, WarApplyOptions.disabled());
+    }
+
+    public ApplyReport apply(
+            UpgradePlan plan,
+            Path sourceRoot,
+            Path outputDir,
+            ApprovedPlan approval,
+            WarApplyOptions warOptions) throws IOException {
         if (plan.dryRun()) {
             throw new IOException("Cannot apply a dry-run plan. Re-run `plan upgrade` with --dry-run=false.");
         }
@@ -103,7 +116,7 @@ public final class ApplyEngine {
 
             ApplyStepResult stepResult = executeStep(
                     step, plan, sourceRoot, outputDir, migratedRoot, appWebRoot,
-                    allChanges, changeCounter, testEntryPoints);
+                    allChanges, changeCounter, testEntryPoints, warOptions);
             results.add(stepResult);
             if ("APPLIED".equals(stepResult.status()) && step.recipe() != null) {
                 appliedRecipeIds.add(step.recipe());
@@ -159,10 +172,13 @@ public final class ApplyEngine {
             Path appWebRoot,
             List<ChangeRecord> allChanges,
             AtomicInteger changeCounter,
-            List<String> testEntryPoints) throws IOException {
+            List<String> testEntryPoints,
+            WarApplyOptions warOptions) throws IOException {
         return switch (step.id()) {
             case "convert-maven" -> runConvertMaven(step, plan, sourceRoot, migratedRoot, appWebRoot,
                     allChanges, changeCounter);
+            case "war-authoritative-merge" -> runWarAuthoritativeMerge(
+                    step, sourceRoot, outputDir, appWebRoot, allChanges, changeCounter, warOptions);
             case "wildfly-local" -> runWildflyLocal(step, plan, migratedRoot, allChanges, changeCounter);
             case "weblogic-adapters" -> runWeblogicAdapters(step, plan, migratedRoot, allChanges, changeCounter);
             case "security-verify" -> runSecurityVerifyScaffold(step, migratedRoot, allChanges, changeCounter);
@@ -270,6 +286,59 @@ public final class ApplyEngine {
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Copied " + copied.size() + " file(s) and generated Maven POMs with test infrastructure");
+    }
+
+    private ApplyStepResult runWarAuthoritativeMerge(
+            UpgradeStep step,
+            Path sourceRoot,
+            Path outputDir,
+            Path appWebRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter,
+            WarApplyOptions warOptions) throws IOException {
+        if (!Files.isDirectory(appWebRoot)) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "No migrated app-web — run convert-maven first");
+        }
+        WarApplyOptions options = warOptions;
+        if (!options.enabled()) {
+            options = reportWriter.resolveWarApplyOptions(outputDir, null, null);
+        }
+        if (!options.enabled()) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "No WAR context — run analyze with --war or pass --war on apply");
+        }
+
+        WarMergeReport mergeReport = warAuthoritativeMerger.merge(
+                options.warFile(),
+                appWebRoot,
+                sourceRoot,
+                options.syncReport(),
+                options.conflictPolicy());
+        reportWriter.writeWarMergeReport(mergeReport, outputDir);
+
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                "app-web/src/main/webapp/WEB-INF/",
+                List.of(),
+                "(source-only layout)",
+                "WAR merge: " + mergeReport.extractedClassCount() + " class(es), "
+                        + mergeReport.mergedLibCount() + " lib(s), "
+                        + mergeReport.conflictCount() + " conflict(s)",
+                step.reason(),
+                List.copyOf(mergeReport.extractedClasses().stream().limit(5).toList()),
+                mergeReport.conflictCount() > 0 ? "MEDIUM" : "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true,
+                step.classification()));
+
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Merged production WAR — " + mergeReport.extractedClassCount() + " class(es), "
+                        + mergeReport.mergedLibCount() + " lib(s); policy="
+                        + mergeReport.policy());
     }
 
     private ApplyStepResult runWildflyLocal(

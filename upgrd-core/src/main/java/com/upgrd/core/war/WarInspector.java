@@ -1,7 +1,9 @@
 package com.upgrd.core.war;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.zip.ZipEntry;
@@ -52,6 +54,44 @@ public final class WarInspector {
             return zip.getEntry("WEB-INF/") != null;
         } catch (IOException ex) {
             return false;
+        }
+    }
+
+    public String classEntryPath(String qualifiedName) {
+        return "WEB-INF/classes/" + qualifiedName.replace('.', '/') + ".class";
+    }
+
+    public String libEntryPath(String jarName) {
+        return "WEB-INF/lib/" + jarName;
+    }
+
+    public boolean extractClass(Path warFile, String qualifiedName, Path destination) throws IOException {
+        String entry = classEntryPath(qualifiedName);
+        try (ZipFile zip = new ZipFile(warFile.toFile())) {
+            ZipEntry zipEntry = zip.getEntry(entry);
+            if (zipEntry == null) {
+                return false;
+            }
+            Files.createDirectories(destination.getParent());
+            try (var in = zip.getInputStream(zipEntry)) {
+                Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
+        }
+    }
+
+    public boolean extractJar(Path warFile, String jarName, Path destination) throws IOException {
+        String entry = libEntryPath(jarName);
+        try (ZipFile zip = new ZipFile(warFile.toFile())) {
+            ZipEntry zipEntry = zip.getEntry(entry);
+            if (zipEntry == null) {
+                return false;
+            }
+            Files.createDirectories(destination.getParent());
+            try (var in = zip.getInputStream(zipEntry)) {
+                Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return true;
         }
     }
 }

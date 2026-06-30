@@ -223,7 +223,7 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M16** | Approval gate: `approved-plan.json`, `plan approve`, apply filters by approval, UI save + `--auto-approve-mandatory` |
 | **M17** | WAR enrichment: `WEB-INF/lib` deps, sync severity, planner uses analyze sync/usage |
 | **M18** | API compatibility catalog (`api-compatibility-report.json`), planner links hits to steps, UI API tab |
-| **M19** | WAR-authoritative apply (merge/decompile/conflict policy) |
+| **M19** | WAR-authoritative apply: merge WEB-INF/classes + lib, Java stubs, conflict policy, `war-merge-report.json` |
 | **M20** | E2E fixture with WAR+logs+source, docs, release |
 
 ## Roadmap to final stage (M15–M20)
@@ -240,9 +240,9 @@ analyze (logs + WAR + source) → plan → preview (before/after) → user confi
 | **M16** | `approved-plan.json`; `plan approve`; apply filters by approval; UI checkboxes + local POST |
 | **M17** | WAR `WEB-INF/lib` inventory, sync severity (NONE→CRITICAL), `sync-report.json`, planner war-source-sync / war-lib-align steps |
 | **M18** | Catalog of unsupported APIs with replacements; link findings to preview diffs and advisories |
-| **M19** | Apply merges production WAR truth into migrated source (conflict markers, decompile policy) |
+| **M19** | Apply merges production WAR into migrated layout; policies `war-wins` / `source-wins` / `mark-conflict`; stubs under `.upgrd/war-stubs/` |
 | **M20** | End-to-end fixture, operator docs, tagged release |
 
-**Current gaps after M18:** Apply still uses source tree; catalog informs plan/review only. M19 adds WAR-authoritative apply.
+**Current gaps after M19:** Full decompilation of WAR-only classes is not automated — stubs + bytecode copy; manual port required. M20 adds E2E fixture and release.
 
 **Recommended workflow today:** `analyze` → `plan upgrade --dry-run` → `plan preview` → UI Review tab → `plan upgrade --dry-run=false` → `apply` — or `pipeline run --serve-ui` then re-run with `--confirm`.

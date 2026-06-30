@@ -30,7 +30,7 @@ import java.util.Set;
 
 public final class AnalyzeEngine {
 
-    public static final String VERSION = "1.6.0-SNAPSHOT";
+    public static final String VERSION = "1.7.0-SNAPSHOT";
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();
@@ -75,7 +75,7 @@ public final class AnalyzeEngine {
         AnalysisReport report = new AnalysisReport(
                 VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
 
-        writeReport(report, security, antiPatterns, apiCompatibility, input.sourceRoot(), input.outputDir());
+        writeReport(report, security, antiPatterns, apiCompatibility, input, input.sourceRoot(), input.outputDir());
         return report;
     }
 
@@ -92,6 +92,7 @@ public final class AnalyzeEngine {
             com.upgrd.core.model.SecurityReport security,
             com.upgrd.core.model.AntiPatternReport antiPatterns,
             com.upgrd.core.model.ApiCompatibilityReport apiCompatibility,
+            AnalysisInput input,
             Path sourceRoot,
             Path outputDir) throws IOException {
         writeReport(report, outputDir);
@@ -100,6 +101,11 @@ public final class AnalyzeEngine {
         reportWriter.writeApiCompatibilityReport(apiCompatibility, outputDir);
         mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
         mapper.writeValue(outputDir.resolve("sync-report.json").toFile(), report.sync());
+        if (input.warFile() != null) {
+            mapper.writeValue(outputDir.resolve("war-context.json").toFile(), new com.upgrd.core.model.WarContext(
+                    input.warFile().toAbsolutePath().normalize().toString(),
+                    com.upgrd.core.model.WarConflictPolicy.WAR_WINS));
+        }
         var documentation = applicationDocumenter.documentAnalyzePhase(
                 report, security, sourceRoot.toAbsolutePath().normalize().toString());
         documentationWriter.write(documentation, outputDir);

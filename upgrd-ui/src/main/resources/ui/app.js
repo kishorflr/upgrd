@@ -112,6 +112,30 @@ function renderSync(sync) {
   }
 }
 
+async function renderWarMerge(warMerge) {
+  const el_ = document.getElementById('war-merge-summary');
+  if (!el_) return;
+  el_.innerHTML = '';
+  if (!warMerge) {
+    el_.appendChild(el('p', 'empty', 'WAR merge report appears after apply with --war'));
+    return;
+  }
+  const dl = el('dl', 'grid');
+  [['Policy', warMerge.policy], ['Merged libs', warMerge.mergedLibCount],
+   ['Extracted classes', warMerge.extractedClassCount], ['Stubs', warMerge.stubCount],
+   ['Conflicts', warMerge.conflictCount]].forEach(([k, v]) => {
+    dl.appendChild(el('dt', null, k));
+    dl.appendChild(el('dd', null, String(v ?? '')));
+  });
+  el_.appendChild(dl);
+  if (warMerge.conflicts && warMerge.conflicts.length) {
+    const ul = el('ul');
+    warMerge.conflicts.forEach(c =>
+      ul.appendChild(el('li', null, c.qualifiedClassName + ' — ' + c.resolution)));
+    el_.appendChild(ul);
+  }
+}
+
 function syncSeverityClass(severity) {
   if (severity === 'CRITICAL' || severity === 'HIGH') return 'high';
   if (severity === 'MEDIUM') return 'medium';
@@ -581,7 +605,7 @@ document.querySelectorAll('#review-filters .filter').forEach(btn => {
 document.getElementById('save-approval').addEventListener('click', saveApproval);
 
 async function init() {
-  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
+  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, warMerge, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
@@ -589,6 +613,7 @@ async function init() {
     fetchReport('change-ledger-preview.json'),
     fetchReport('approved-plan.json'),
     fetchReport('api-compatibility-report.json'),
+    fetchReport('war-merge-report.json'),
     fetchReport('design-advisory.json'),
     fetchReport('anti-pattern-report.json'),
     fetchReport('security-report.json'),
@@ -597,6 +622,7 @@ async function init() {
     fetchReport('app-documentation.json')
   ]);
   renderDashboard(analysis);
+  renderWarMerge(warMerge);
   renderPlan(plan);
   renderChanges(ledger);
   renderPreviewSummary(previewReport);

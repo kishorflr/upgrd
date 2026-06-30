@@ -39,7 +39,9 @@ public final class ReportServer implements AutoCloseable {
             "anti-pattern-report.json",
             "upgrade-preview-report.json",
             "change-ledger-preview.json",
-            "api-compatibility-report.json");
+            "api-compatibility-report.json",
+            "war-context.json",
+            "war-merge-report.json");
 
     private final HttpServer server;
     private final Path outputDir;
