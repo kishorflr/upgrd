@@ -145,6 +145,15 @@ public final class UpgradePlanner {
                 StepMode.ADVISORY));
 
         steps.add(step(
+                "openrewrite-sql-scan",
+                "security",
+                "OpenRewrite search scan for SQL concatenation patterns",
+                "upgrd:OpenRewriteSqlScan",
+                "Run `upgrd rewrite run --dry-run --force` with recipe com.upgrd.migrated.SqlConcatenationScan after apply",
+                List.of("CWE-89"),
+                StepMode.ADVISORY));
+
+        steps.add(step(
                 "automation-ready",
                 "tooling",
                 "Embed AI/automation-friendly metadata in migrated application",

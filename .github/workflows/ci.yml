@@ -21,3 +21,24 @@ jobs:
 
       - name: Maven verify (includes WildFly HTTP smoke when Docker is available)
         run: mvn verify -B
+
+  package-cli:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build shaded CLI JAR
+        run: mvn -pl upgrd-cli -am package -DskipTests -B
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upgrd-cli
+          path: upgrd-cli/target/upgrd.jar
+          retention-days: 14

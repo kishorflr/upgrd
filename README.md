@@ -1,5 +1,7 @@
 # UpGrd
 
+![CI](https://github.com/kishorflr/upgrd/actions/workflows/ci.yml/badge.svg)
+
 Edge-local Java modernization toolkit. Analyzes legacy applications (source, WAR, logs), plans upgrades, and produces an upgraded Maven-based codebase — without sending customer data to any AI or cloud service.
 
 ## Prerequisites
@@ -62,6 +64,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
+| `pipeline run` | Full analyze → plan → apply → verify in one command |
 | **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints, Thymeleaf scaffolds), Spring 4→6, javax→jakarta, raw collections, security fixes |
 | **Recipes (planned)** | Full Struts controller wiring, SQL OpenRewrite search recipes |
 
@@ -102,7 +105,20 @@ Validates `deploy/weblogic/` overlays, `wldeploy.sh` / `wldeploy.properties`, an
 
 ### CI (GitHub Actions)
 
-`.github/workflows/ci.yml` runs `mvn verify` on every push/PR. When Docker is available (ubuntu-latest), `WildFlyHttpSmokeIntegrationTest` deploys to WildFly and probes HTTP live.
+`.github/workflows/ci.yml` runs `mvn verify` on every push/PR and uploads `upgrd.jar` as a workflow artifact when green.
+
+### One-shot pipeline
+
+```bash
+upgrd pipeline run \
+  --source ./legacy-app \
+  --war ./legacy-app.war \
+  --output ./upgrd-out \
+  --profile legacy-web
+
+# Backend (no WAR):
+upgrd pipeline run --source ./legacy-backend --output ./upgrd-out --profile legacy-backend --skip-verify
+```
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 

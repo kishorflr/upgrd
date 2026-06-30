@@ -1,16 +1,12 @@
 package com.upgrd.cli.command;
 
 import com.upgrd.core.failure.FailureReportService;
-import com.upgrd.core.model.VerifyReport.WildflySmoke;
-import com.upgrd.core.verify.VerifyReportWriter;
-import com.upgrd.core.verify.WildFlySmokeChecker;
+import com.upgrd.core.verify.VerifyEngine;
+import com.upgrd.core.verify.VerifyEngine.VerifyOptions;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
 
 @Command(
@@ -43,71 +39,33 @@ public final class VerifyCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        Path migratedPom = output.resolve("migrated/pom.xml");
-        if (!Files.isRegularFile(migratedPom)) {
-            throw new IllegalArgumentException("Migrated POM not found: " + migratedPom
-                    + " — run `upgrd apply` first");
-        }
+        System.out.printf("UpGrd verify: output %s%n", output.toAbsolutePath());
 
-        Path migratedDir = output.resolve("migrated").toAbsolutePath().normalize();
-        Path reportDir = migratedDir.resolve(".upgrd/failure-report");
-        Files.createDirectories(reportDir);
-        Path logFile = reportDir.resolve("last-run.log");
+        var result = new VerifyEngine().verify(new VerifyOptions(
+                output, securityScan, wildflySmoke, wildflyDeploy, wildflyHttp));
 
-        List<String> command = new ArrayList<>();
-        command.add("mvn");
-        command.add("-f");
-        command.add(migratedPom.toString());
-        command.add("verify");
-        if (securityScan) {
-            command.add("-Psecurity-verify");
-        }
-
-        System.out.printf("UpGrd verify: running in %s%n", migratedDir);
-        System.out.printf("  Command: %s%n", String.join(" ", command));
-
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(migratedDir.toFile());
-        builder.redirectErrorStream(true);
-        Process process = builder.start();
-        String log = new String(process.getInputStream().readAllBytes());
-        Files.writeString(logFile, log);
-        int exitCode = process.waitFor();
-        String commandLine = String.join(" ", command);
-
-        WildflySmoke wildflySection = null;
-        boolean runWildfly = wildflySmoke || wildflyDeploy || wildflyHttp;
-        if (runWildfly && exitCode == 0) {
-            var checker = new WildFlySmokeChecker();
-            var smoke = wildflyDeploy
-                    ? checker.checkDeployAndHttp(output, true, wildflyHttp || wildflyDeploy)
-                    : checker.checkDeployAndHttp(output, false, wildflyHttp);
-            wildflySection = VerifyReportWriter.toWildflySmoke(smoke);
+        if (result.wildflySmoke() != null) {
             System.out.println("  WildFly smoke check:");
-            smoke.notes().forEach(note -> System.out.printf("    %s%n", note));
-        } else if (runWildfly) {
-            System.out.println("  WildFly smoke check: skipped (verify failed)");
+            result.wildflySmoke().notes().forEach(note -> System.out.printf("    %s%n", note));
         }
 
-        var verifyReport = new VerifyReportWriter().build(
-                exitCode == 0, exitCode, securityScan, commandLine, logFile, log, wildflySection);
-        Path verifyReportPath = new VerifyReportWriter().write(verifyReport, output);
-
-        if (exitCode == 0) {
-            System.out.println(log);
+        if (result.passed()) {
+            System.out.println(result.log());
             System.out.println("  Verify: PASSED");
-            System.out.printf("  Report: %s%n", verifyReportPath);
+            System.out.printf("  Report: %s%n", result.reportPath());
         } else {
-            System.out.println(log);
-            System.out.printf("  Verify: FAILED (exit %d)%n", exitCode);
+            System.out.println(result.log());
+            System.out.printf("  Verify: FAILED (exit %d)%n", result.exitCode());
             if (anonymousReport) {
+                var migratedDir = output.resolve("migrated").toAbsolutePath().normalize();
+                var reportDir = migratedDir.resolve(".upgrd/failure-report");
                 var written = new FailureReportService().generateFromText(
-                        log, reportDir, "VERIFY_FAILURE", migratedDir);
+                        result.log(), reportDir, "VERIFY_FAILURE", migratedDir);
                 System.out.println("  Anonymous failure report (safe for external AI):");
                 written.forEach(path -> System.out.printf("    %s%n", path));
             }
         }
 
-        return exitCode;
+        return result.passed() ? 0 : result.exitCode();
     }
 }

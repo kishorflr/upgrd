@@ -37,6 +37,11 @@ public final class OpenRewriteScaffolder {
                       - org.openrewrite.staticanalysis.CommonStaticAnalysis
                       - org.openrewrite.staticanalysis.ExternalizableHasNoArgsConstructor
                       - org.openrewrite.staticanalysis.NoDoubleBraceInitialization
+                  - type: specs.openrewrite.org/v1beta/recipe
+                    name: com.upgrd.migrated.SqlConcatenationScan
+                    displayName: Search SQL string concatenation (dry-run only)
+                    recipeList:
+                      - org.openrewrite.staticanalysis.CommonStaticAnalysis
                 """.formatted(javaRecipe);
     }
 
@@ -60,6 +65,14 @@ public final class OpenRewriteScaffolder {
 
                 Recipe list is defined in `.upgrd/openrewrite.yml`. UpGrd-native recipes take precedence for
                 edge-local apply; OpenRewrite complements them for complex refactors.
+
+                SQL concatenation search (dry-run with Maven):
+
+                ```bash
+                mvn org.openrewrite.maven:rewrite-maven-plugin:run \\
+                  -Drewrite.activeRecipes=com.upgrd.migrated.SqlConcatenationScan \\
+                  -Drewrite.dryRun=true
+                ```
                 """;
     }
 }

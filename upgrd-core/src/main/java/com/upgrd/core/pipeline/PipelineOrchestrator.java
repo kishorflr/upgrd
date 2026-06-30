@@ -1,0 +1,99 @@
+package com.upgrd.core.pipeline;
+
+import com.upgrd.core.AnalyzeEngine;
+import com.upgrd.core.apply.ApplyEngine;
+import com.upgrd.core.discovery.ProjectDiscoveryService;
+import com.upgrd.core.model.AnalysisInput;
+import com.upgrd.core.model.AnalysisReport;
+import com.upgrd.core.model.ApplyReport;
+import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.model.UpgradePlan;
+import com.upgrd.core.plan.UpgradePlanner;
+import com.upgrd.core.report.ReportWriter;
+import com.upgrd.core.security.SecurityAnalyzer;
+import com.upgrd.core.verify.VerifyEngine;
+import com.upgrd.core.verify.VerifyEngine.VerifyOptions;
+import com.upgrd.core.verify.VerifyEngine.VerifyResult;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * End-to-end edge-local pipeline: analyze → plan → apply → verify.
+ */
+public final class PipelineOrchestrator {
+
+    public PipelineResult run(PipelineRequest request) throws Exception {
+        List<String> phases = new ArrayList<>();
+
+        AnalyzeEngine analyzeEngine = new AnalyzeEngine();
+        AnalysisReport analysis = analyzeEngine.analyze(new AnalysisInput(
+                request.source(),
+                request.war(),
+                request.logs(),
+                request.output(),
+                request.profile()));
+        analyzeEngine.writeReport(analysis, request.output());
+        phases.add("analyze");
+
+        var discovery = analysis.discovery();
+        var security = new SecurityAnalyzer().analyze(request.source(), discovery);
+        new ReportWriter().writeSecurityReport(security, request.output());
+
+        UpgradePlanner planner = new UpgradePlanner();
+        UpgradePlan plan = planner.plan(
+                discovery,
+                request.targetJava(),
+                request.productionServer(),
+                false,
+                security);
+        Path planFile = planner.writePlan(plan, request.output());
+        new ReportWriter().writeChangeLedger(
+                new ReportWriter().previewFromPlan(plan, request.source()),
+                request.output());
+        phases.add("plan");
+
+        ApplyEngine applyEngine = new ApplyEngine();
+        ApplyReport applyReport = applyEngine.apply(plan, request.source(), request.output());
+        applyEngine.writeReport(applyReport, request.output());
+        phases.add("apply");
+
+        VerifyResult verifyResult = null;
+        if (request.runVerify()) {
+            verifyResult = new VerifyEngine().verify(new VerifyOptions(
+                    request.output(),
+                    request.securityScan(),
+                    request.wildflySmoke(),
+                    request.wildflyDeploy(),
+                    request.wildflyHttp()));
+            phases.add("verify");
+        }
+
+        boolean success = verifyResult == null || verifyResult.passed();
+        return new PipelineResult(success, phases, planFile, applyReport, verifyResult);
+    }
+
+    public record PipelineRequest(
+            Path source,
+            Path war,
+            List<Path> logs,
+            Path output,
+            ProjectProfile profile,
+            String targetJava,
+            String productionServer,
+            boolean runVerify,
+            boolean securityScan,
+            boolean wildflySmoke,
+            boolean wildflyDeploy,
+            boolean wildflyHttp) {
+    }
+
+    public record PipelineResult(
+            boolean success,
+            List<String> completedPhases,
+            Path planFile,
+            ApplyReport applyReport,
+            VerifyResult verifyResult) {
+    }
+}

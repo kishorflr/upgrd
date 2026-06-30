@@ -5,6 +5,7 @@ import com.upgrd.cli.command.ApplyCommand;
 import com.upgrd.cli.command.ExportCommand;
 import com.upgrd.cli.command.PlanCommand;
 import com.upgrd.cli.command.ReportFailureCommand;
+import com.upgrd.cli.command.pipeline.PipelineCommand;
 import com.upgrd.cli.command.rewrite.RewriteCommand;
 import com.upgrd.cli.command.weblogic.WebLogicCommand;
 import com.upgrd.cli.command.wildfly.WildFlyCommand;
@@ -28,7 +29,8 @@ import picocli.CommandLine.Command;
                 ExportCommand.class,
                 WildFlyCommand.class,
                 WebLogicCommand.class,
-                RewriteCommand.class
+                RewriteCommand.class,
+                PipelineCommand.class
         })
 public final class UpGrd implements Runnable {
 

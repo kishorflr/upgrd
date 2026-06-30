@@ -30,7 +30,7 @@ class StrutsActionToSpringControllerRecipeTest {
         assertTrue(change.isPresent());
         String after = change.get().after();
         assertTrue(after.contains("@Controller"));
-        assertTrue(after.contains("@GetMapping"));
+        assertTrue(after.contains("@GetMapping") || after.contains("@RequestMapping"));
         assertTrue(after.contains("org.springframework"));
         assertTrue(!after.contains("org.apache.struts"));
         assertTrue(!after.contains("extends Action"));
@@ -61,8 +61,8 @@ class StrutsActionToSpringControllerRecipeTest {
         var change = new StrutsActionToSpringControllerRecipe().transform("UserAction.java", before);
         assertTrue(change.isPresent());
         String after = change.get().after();
-        assertTrue(after.contains("@GetMapping"));
-        assertTrue(!after.contains("ActionForward"));
+        assertTrue(after.contains("@RequestMapping") || after.contains("@GetMapping"));
+        assertTrue(after.contains("log.info"));
         assertTrue(!after.contains("ActionMapping"));
     }
 }

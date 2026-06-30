@@ -134,6 +134,11 @@ public final class RecipeCatalog {
                 "Apply OpenRewrite AST migrations (advisory)",
                 false));
         register(new RecipeDefinition(
+                "openrewrite-sql-scan",
+                "upgrd:OpenRewriteSqlScan",
+                "OpenRewrite SQL concatenation search (advisory dry-run)",
+                false));
+        register(new RecipeDefinition(
                 "automation-ready",
                 "upgrd:AutomationReady",
                 "Embed AI/automation-friendly metadata in migrated application",
