@@ -30,19 +30,19 @@ public final class RecipeCatalog {
                 true));
         register(new RecipeDefinition(
                 "spring-4-to-6",
-                "org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_0",
+                "upgrd:Spring4To6",
                 "Upgrade Spring MVC 4.x to Spring 6",
-                false));
+                true));
         register(new RecipeDefinition(
                 "upgrade-java",
-                "org.openrewrite.java.migrate.UpgradeToJava21",
+                "upgrd:UpgradeToJava21",
                 "Upgrade source compatibility to Java 21",
-                false));
+                true));
         register(new RecipeDefinition(
                 "replace-raw-collections",
-                "org.openrewrite.staticanalysis.CommonStaticAnalysis",
+                "upgrd:ReplaceRawCollections",
                 "Replace raw and legacy collection types",
-                false));
+                true));
         register(new RecipeDefinition(
                 "introduce-layering",
                 "upgrd:ExtractServiceLayer",
@@ -72,17 +72,17 @@ public final class RecipeCatalog {
                 "weblogic-adapters",
                 "upgrd:WebLogic14cDescriptors",
                 "Generate deploy/weblogic overlays for production",
-                false));
+                true));
         register(new RecipeDefinition(
                 "wildfly-local",
                 "upgrd:WildFlyLocalProfile",
                 "Generate deploy/wildfly profile for local verification",
-                false));
+                true));
         register(new RecipeDefinition(
                 "security-verify",
                 "upgrd:SecurityVerify",
                 "Run OWASP Dependency-Check and SpotBugs after migration",
-                false));
+                true));
         register(new RecipeDefinition(
                 "test-scaffold",
                 "upgrd:GenerateSmokeTests",

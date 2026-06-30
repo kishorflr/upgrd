@@ -6,11 +6,13 @@ import picocli.CommandLine.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 
 @Command(
         name = "verify",
-        description = "Run automated tests in the migrated application (mvn test)")
+        description = "Run mvn verify on the migrated application (compile, test, package)")
 public final class VerifyCommand implements Callable<Integer> {
 
     @Option(names = "--output", defaultValue = "./upgrd-out", description = "Output directory containing migrated/")
@@ -19,6 +21,10 @@ public final class VerifyCommand implements Callable<Integer> {
     @Option(names = "--anonymous-report", defaultValue = "true",
             description = "On failure, write a sanitized report under migrated/.upgrd/failure-report/")
     private boolean anonymousReport;
+
+    @Option(names = "--security-scan", defaultValue = "false",
+            description = "Also run SpotBugs + OWASP Dependency-Check (-Psecurity-verify)")
+    private boolean securityScan;
 
     @Override
     public Integer call() throws Exception {
@@ -33,10 +39,19 @@ public final class VerifyCommand implements Callable<Integer> {
         Files.createDirectories(reportDir);
         Path logFile = reportDir.resolve("last-run.log");
 
-        System.out.printf("UpGrd verify: running tests in %s%n", migratedDir);
-        System.out.printf("  Command: mvn -f %s test%n", migratedPom.toAbsolutePath());
+        List<String> command = new ArrayList<>();
+        command.add("mvn");
+        command.add("-f");
+        command.add(migratedPom.toString());
+        command.add("verify");
+        if (securityScan) {
+            command.add("-Psecurity-verify");
+        }
 
-        ProcessBuilder builder = new ProcessBuilder("mvn", "-f", migratedPom.toString(), "test");
+        System.out.printf("UpGrd verify: running in %s%n", migratedDir);
+        System.out.printf("  Command: %s%n", String.join(" ", command));
+
+        ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(migratedDir.toFile());
         builder.redirectErrorStream(true);
         Process process = builder.start();

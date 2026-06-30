@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<project name="legacy-backend" default="compile">
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+  <target name="init">
+    <mkdir dir="${build}/classes"/>
+  </target>
+  <target name="compile" depends="init">
+    <javac srcdir="${src}" destdir="${build}/classes" source="1.7" target="1.7"/>
+  </target>
+</project>

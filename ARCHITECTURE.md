@@ -23,7 +23,7 @@ Discover → Analyze → Plan (dry-run) → Apply → Verify → Report
 | Analyze | WAR/source sync, log usage mapping, design advisory, security scan, agent documentation |
 | Plan | Profile-aware recipe list with per-step reasoning + security remediation steps |
 | Apply | Rewrite source, generate POMs, fix security issues, update change ledger and documentation |
-| Verify | `mvn verify`, WildFly profile, OWASP Dependency-Check, SpotBugs |
+| Verify | `upgrd verify` runs `mvn verify`; `-Psecurity-verify` for SpotBugs + OWASP; anonymous failure reports on error |
 | Report | JSON reports + local HTML dashboard (localhost only) |
 
 ## Use case profiles

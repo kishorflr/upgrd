@@ -42,8 +42,108 @@ public final class MavenScaffolder {
                     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
                     <junit.version>5.11.4</junit.version>
                   </properties>
+                %s
                 </project>
-                """.formatted(javaVersion);
+                """.formatted(javaVersion, mavenProfiles());
+    }
+
+    private String mavenProfiles() {
+        return """
+                  <profiles>
+                    <profile>
+                      <id>local-wildfly</id>
+                      <properties>
+                        <deploy.server>wildfly</deploy.server>
+                      </properties>
+                      <build>
+                        <plugins>
+                          <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-war-plugin</artifactId>
+                            <version>3.4.0</version>
+                            <configuration>
+                              <webResources>
+                                <resource>
+                                  <directory>${project.basedir}/../deploy/wildfly</directory>
+                                  <targetPath>WEB-INF</targetPath>
+                                  <includes>
+                                    <include>jboss-web.xml</include>
+                                  </includes>
+                                </resource>
+                              </webResources>
+                            </configuration>
+                          </plugin>
+                        </plugins>
+                      </build>
+                    </profile>
+                    <profile>
+                      <id>production-weblogic</id>
+                      <properties>
+                        <deploy.server>weblogic</deploy.server>
+                      </properties>
+                      <build>
+                        <plugins>
+                          <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-war-plugin</artifactId>
+                            <version>3.4.0</version>
+                            <configuration>
+                              <webResources>
+                                <resource>
+                                  <directory>${project.basedir}/../deploy/weblogic</directory>
+                                  <targetPath>WEB-INF</targetPath>
+                                  <includes>
+                                    <include>weblogic.xml</include>
+                                  </includes>
+                                </resource>
+                              </webResources>
+                            </configuration>
+                          </plugin>
+                        </plugins>
+                      </build>
+                    </profile>
+                    <profile>
+                      <id>security-verify</id>
+                      <build>
+                        <plugins>
+                          <plugin>
+                            <groupId>com.github.spotbugs</groupId>
+                            <artifactId>spotbugs-maven-plugin</artifactId>
+                            <version>4.8.6.6</version>
+                            <configuration>
+                              <effort>Max</effort>
+                              <threshold>Low</threshold>
+                              <failOnError>false</failOnError>
+                            </configuration>
+                            <executions>
+                              <execution>
+                                <goals>
+                                  <goal>check</goal>
+                                </goals>
+                              </execution>
+                            </executions>
+                          </plugin>
+                          <plugin>
+                            <groupId>org.owasp</groupId>
+                            <artifactId>dependency-check-maven</artifactId>
+                            <version>11.1.1</version>
+                            <configuration>
+                              <failBuildOnCVSS>9</failBuildOnCVSS>
+                              <format>JSON</format>
+                            </configuration>
+                            <executions>
+                              <execution>
+                                <goals>
+                                  <goal>check</goal>
+                                </goals>
+                              </execution>
+                            </executions>
+                          </plugin>
+                        </plugins>
+                      </build>
+                    </profile>
+                  </profiles>
+                """;
     }
 
     private String webModulePom(String javaVersion, ProjectProfile profile) {

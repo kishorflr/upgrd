@@ -56,7 +56,7 @@ public final class UpgradePlanner {
                 "upgrade-java",
                 "language",
                 "Upgrade source compatibility to Java " + targetJava,
-                "org.openrewrite.java.migrate.UpgradeToJava" + targetJava.replace("java", ""),
+                "upgrd:UpgradeToJava21",
                 "Target runtime requires Java " + targetJava + "; language features and deprecated APIs must be updated",
                 List.of("javaVersionHint=" + discovery.javaVersionHint()),
                 StepMode.AUTOMATED));
@@ -164,7 +164,7 @@ public final class UpgradePlanner {
                     "spring-4-to-6",
                     "framework",
                     "Upgrade Spring MVC 4.x to Spring 6 / Boot 3 baseline",
-                    "org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_0",
+                    "upgrd:Spring4To6",
                     "Spring 4.x is incompatible with Jakarta EE and Java 21 without upgrading to Spring 6",
                     fp.evidence().stream().filter(e -> e.contains("spring")).limit(5).toList(),
                     StepMode.AUTOMATED));
@@ -209,7 +209,7 @@ public final class UpgradePlanner {
                     "replace-raw-collections",
                     "typing",
                     "Replace raw and legacy collection types",
-                    "org.openrewrite.staticanalysis.CommonStaticAnalysis",
+                    "upgrd:ReplaceRawCollections",
                     "Parameterized collections improve type safety and enable safer automated refactors",
                     fp.evidence().stream()
                             .filter(e -> e.contains("raw") || e.contains("Vector"))

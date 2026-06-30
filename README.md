@@ -56,17 +56,18 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `plan upgrade --dry-run` | Recipe step list (OpenRewrite-oriented) |
 | `apply`, `verify`, `run` | Not yet implemented |
 
-## M2 in progress (1.1.0-SNAPSHOT)
+## M2 / M3 status (1.1.0-SNAPSHOT)
 
 | Command | Status |
 |---------|--------|
 | `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
-| `apply` | Source migration, security fixes, JUnit 5 smoke tests, automation metadata in migrated/ |
-| `verify` | Runs `mvn test` in migrated application |
+| `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
+| `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify` (SpotBugs + OWASP) |
+| `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `run --serve-ui` | Local audit dashboard on localhost (reads JSON reports only) |
-| `upgrd-recipes` | FileRecipe catalog (OpenRewrite adapter planned) |
-| Java 21 rewrite + Struts/Spring recipes | Planned |
+| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring, Spring 4→6, javax→jakarta, raw collections, security fixes |
+| **Recipes (planned)** | Full OpenRewrite AST engine, deeper Struts migration, SQL/deserialization rules |
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).
 

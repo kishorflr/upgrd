@@ -45,6 +45,7 @@ public final class ApplyEngine {
     private final SourceMigrator sourceMigrator = new SourceMigrator();
     private final MavenScaffolder mavenScaffolder = new MavenScaffolder();
     private final AutomationReadinessScaffolder automationScaffolder = new AutomationReadinessScaffolder();
+    private final DeployProfileScaffolder deployProfileScaffolder = new DeployProfileScaffolder();
     private final SmokeTestGenerator smokeTestGenerator = new SmokeTestGenerator();
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
@@ -141,6 +142,9 @@ public final class ApplyEngine {
         return switch (step.id()) {
             case "convert-maven" -> runConvertMaven(step, plan, sourceRoot, migratedRoot, appWebRoot,
                     allChanges, changeCounter);
+            case "wildfly-local" -> runWildflyLocal(step, plan, migratedRoot, allChanges, changeCounter);
+            case "weblogic-adapters" -> runWeblogicAdapters(step, plan, migratedRoot, allChanges, changeCounter);
+            case "security-verify" -> runSecurityVerifyScaffold(step, migratedRoot, allChanges, changeCounter);
             case "test-scaffold" -> runTestScaffold(step, outputDir, appWebRoot, allChanges, changeCounter, testEntryPoints);
             case "automation-ready" -> runAutomationReady(step, plan, migratedRoot, testEntryPoints, allChanges, changeCounter);
             default -> runRecipe(step, appWebRoot, allChanges, changeCounter);
@@ -239,6 +243,75 @@ public final class ApplyEngine {
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
                 "Copied " + copied.size() + " file(s) and generated Maven POMs with test infrastructure");
+    }
+
+    private ApplyStepResult runWildflyLocal(
+            UpgradeStep step,
+            UpgradePlan plan,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) throws IOException {
+        List<String> artifacts = deployProfileScaffolder.scaffoldWildFly(migratedRoot, "app-web");
+        recordDeployChange(step, migratedRoot, allChanges, changeCounter, artifacts);
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Generated WildFly local deploy profile (" + artifacts.size() + " file(s))");
+    }
+
+    private ApplyStepResult runWeblogicAdapters(
+            UpgradeStep step,
+            UpgradePlan plan,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) throws IOException {
+        List<String> artifacts = deployProfileScaffolder.scaffoldWebLogic(migratedRoot, plan.productionServer());
+        recordDeployChange(step, migratedRoot, allChanges, changeCounter, artifacts);
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Generated WebLogic production deploy overlays (" + artifacts.size() + " file(s))");
+    }
+
+    private ApplyStepResult runSecurityVerifyScaffold(
+            UpgradeStep step,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) {
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                "migrated/pom.xml",
+                List.of(),
+                "",
+                "security-verify Maven profile (SpotBugs + OWASP Dependency-Check)",
+                step.reason(),
+                List.of("-Psecurity-verify"),
+                "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true));
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Security verify profile available — run: mvn verify -Psecurity-verify");
+    }
+
+    private void recordDeployChange(
+            UpgradeStep step,
+            Path migratedRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter,
+            List<String> artifacts) {
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                migratedRoot.resolve("deploy").toString(),
+                List.of(),
+                "",
+                "Deploy artifacts: " + String.join(", ", artifacts),
+                step.reason(),
+                List.copyOf(artifacts),
+                "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true));
     }
 
     private ApplyStepResult runRecipe(
