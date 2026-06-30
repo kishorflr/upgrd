@@ -9,6 +9,7 @@
 5. **Living documentation** — UpGrd generates structured, agent-readable documentation during analyze and apply — not as an afterthought.
 6. **Security by default** — Known vulnerabilities are detected during analyze and remediated during apply where safe; remaining findings are tracked in `security-report.json`.
 7. **Automation-ready output** — Migrated applications use standard Maven layout, embedded `upgrd-analysis.json`, `AGENTS.md`, and JUnit 5 smoke tests so automation tools and AI agents can analyze them without re-discovery.
+8. **Anonymous failure sharing** — On verify/build failure, UpGrd generates sanitized reports under `migrated/.upgrd/failure-report/` so teams can seek external AI help without exposing proprietary business logic, paths, or secrets.
 
 ## Pipeline
 

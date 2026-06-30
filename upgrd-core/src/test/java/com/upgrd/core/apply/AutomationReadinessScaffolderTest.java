@@ -33,6 +33,8 @@ class AutomationReadinessScaffolderTest {
         assertTrue(Files.isRegularFile(migrated.resolve("AGENTS.md")));
         assertTrue(Files.isRegularFile(migrated.resolve("upgrd-analysis.json")));
         assertTrue(Files.isRegularFile(migrated.resolve(".upgrd/manifest.json")));
+        assertTrue(Files.isRegularFile(migrated.resolve(".upgrd/failure-report/README.md")));
+        assertTrue(Files.readString(migrated.resolve("AGENTS.md")).contains("Anonymous failure reports"));
         assertTrue(Files.isDirectory(migrated.resolve("app-web/src/test/java/com/upgrd/smoke")));
     }
 }

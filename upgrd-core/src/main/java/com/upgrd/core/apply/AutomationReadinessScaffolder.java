@@ -28,9 +28,11 @@ public final class AutomationReadinessScaffolder {
         Path appWeb = migratedRoot.resolve("app-web");
         Path testJava = appWeb.resolve("src/test/java/com/upgrd/smoke");
         Path upgrdMeta = migratedRoot.resolve(".upgrd");
+        Path failureReportDir = upgrdMeta.resolve("failure-report");
 
         Files.createDirectories(testJava);
         Files.createDirectories(upgrdMeta);
+        Files.createDirectories(failureReportDir);
         Files.createDirectories(appWeb.resolve("src/test/resources"));
 
         AutomationManifest manifest = new AutomationManifest(
@@ -50,16 +52,19 @@ public final class AutomationReadinessScaffolder {
                         "Entry points list log-discovered hot paths; start tests there",
                         "Smoke tests live under com.upgrd.smoke",
                         "See AGENTS.md in migrated/ root for onboarding",
+                        "On test failure use .upgrd/failure-report/ for AI-safe anonymous reports",
                         "Human audit reports remain in upgrd-out/ beside migrated/"));
 
         Path manifestFile = migratedRoot.resolve("upgrd-analysis.json");
         mapper.writeValue(manifestFile.toFile(), manifest);
         Files.writeString(upgrdMeta.resolve("manifest.json"), mapper.writeValueAsString(manifest));
         Files.writeString(migratedRoot.resolve("AGENTS.md"), agentsMarkdown(plan, manifest));
+        Files.writeString(failureReportDir.resolve("README.md"), failureReportReadme());
 
         return List.of(
                 "upgrd-analysis.json",
                 ".upgrd/manifest.json",
+                ".upgrd/failure-report/README.md",
                 "AGENTS.md",
                 "app-web/src/test/java/com/upgrd/smoke/");
     }
@@ -86,6 +91,59 @@ public final class AutomationReadinessScaffolder {
         md.append("\n## Audit trail\n\n");
         md.append("Upgrade reasoning, security fixes, and diffs are in the sibling `upgrd-out/` directory:\n");
         md.append("`change-ledger.json`, `security-report.json`, `app-documentation.json`\n");
+        md.append("\n## Anonymous failure reports (AI-safe sharing)\n\n");
+        md.append("When tests or builds fail, UpGrd can produce **sanitized failure reports** that preserve ");
+        md.append("technical context (errors, stack frames, framework versions) while redacting business logic, ");
+        md.append("proprietary class names, file paths, and secrets.\n\n");
+        md.append("Reports are written to `.upgrd/failure-report/`:\n\n");
+        md.append("- `anonymous-failure-report.md` — paste into an external AI assistant\n");
+        md.append("- `anonymous-failure-report.json` — structured equivalent\n");
+        md.append("- `last-run.log` — raw capture from the last verify run (local only; do not share)\n\n");
+        md.append("**From UpGrd CLI** (after `upgrd verify` fails):\n\n");
+        md.append("```bash\n");
+        md.append("upgrd verify --output ./upgrd-out\n");
+        md.append("# or manually from a captured log:\n");
+        md.append("upgrd report-failure --log migrated/.upgrd/failure-report/last-run.log --output ./upgrd-out\n");
+        md.append("```\n\n");
+        md.append("**Manual capture** (without UpGrd):\n\n");
+        md.append("```bash\n");
+        md.append("mvn test 2>&1 | tee .upgrd/failure-report/last-run.log\n");
+        md.append("```\n\n");
+        md.append("Then run `upgrd report-failure` against the log file.\n");
         return md.toString();
+    }
+
+    private String failureReportReadme() {
+        return """
+                # Anonymous failure reports
+
+                This directory holds **sanitized failure reports** safe to share with external AI platforms.
+
+                ## What is redacted
+
+                - Application package and class names (tokenized as `app.Type_n`)
+                - Absolute file paths (`<PATH_n>`)
+                - Passwords, tokens, JDBC credentials
+                - Raw source code (only error messages and stack frames are kept)
+
+                ## What is preserved
+
+                - Test failure messages and assertion text
+                - Framework stack frames (JUnit, Spring, JDK)
+                - Build tool errors (compilation, dependency resolution)
+                - Environment metadata (Java version, OS)
+
+                ## Generate a report
+
+                ```bash
+                # Automatic on failure:
+                upgrd verify --output ../upgrd-out
+
+                # From a saved log:
+                upgrd report-failure --log .upgrd/failure-report/last-run.log --output ../upgrd-out
+                ```
+
+                Share `anonymous-failure-report.md` — not `last-run.log`.
+                """;
     }
 }

@@ -94,6 +94,7 @@ During **apply**, security fixes run automatically where safe (log4j, weak crypt
 - `AGENTS.md` and `upgrd-analysis.json` — embedded guide for automation/AI tools
 - `app-web/src/test/java/com/upgrd/smoke/` — JUnit 5 smoke tests (hot paths from logs prioritized)
 - Run tests: `mvn -f migrated/pom.xml test` or `upgrd verify --output ./upgrd-out`
+- On failure: share `migrated/.upgrd/failure-report/anonymous-failure-report.md` with external AI (paths, secrets, and app types are redacted)
 
 ## Security
 
