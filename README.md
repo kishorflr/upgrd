@@ -2,38 +2,58 @@
 
 Edge-local Java modernization toolkit. Analyzes legacy applications (source, WAR, logs), plans upgrades, and produces an upgraded Maven-based codebase — without sending customer data to any AI or cloud service.
 
-## Goals
+## Prerequisites
 
-- Detect source vs deployed WAR drift
-- Map runtime usage from logs (used vs unused components)
-- Plan and apply upgrades: Java 21, Jakarta EE, WebLogic 14c (production), Maven conversion
-- Run locally on **WildFly**; deploy to **WebLogic** with minimal application code changes
-- Add test scaffolding and fix security vulnerabilities (deterministic tooling only)
+- **Java 21** (JDK)
+- **Maven 3.9+**
+
+```bash
+# macOS (Homebrew)
+brew install openjdk@21 maven
+```
+
+## Build
+
+```bash
+mvn verify
+```
+
+## Run
+
+After packaging:
+
+```bash
+java -jar upgrd-cli/target/upgrd.jar analyze \
+  --source ./legacy-app \
+  --war ./legacy-app.war \
+  --logs ./logs/access.log,./logs/server.log \
+  --output ./upgrd-out
+
+java -jar upgrd-cli/target/upgrd.jar plan upgrade \
+  --source ./legacy-app \
+  --target java21 \
+  --server weblogic-14c \
+  --dry-run \
+  --output ./upgrd-out
+```
+
+## M1 status (current)
+
+| Command | Status |
+|---------|--------|
+| `analyze` | WAR/source sync, log usage heatmap, discovery |
+| `plan upgrade --dry-run` | Recipe step list (OpenRewrite-oriented) |
+| `apply`, `verify`, `run` | Not yet implemented |
+
+Reports are written locally to `--output` (default `./upgrd-out`).
 
 ## Security
 
 **Runtime rule:** UpGrd runs fully on the customer edge. No Cursor, LLM, or external API access to source trees, WAR files, or logs.
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for design principles and pipeline phases.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for design principles.
 
-## Status
+## Modules
 
-Early bootstrap — repository initialized, implementation not started.
-
-## Planned CLI
-
-```bash
-upgrd analyze  --source ./app --war ./app.war --logs ./logs/
-upgrd plan     upgrade --target java21 --server weblogic-14c --dry-run
-upgrd apply    upgrade --plan ./upgrd-out/upgrade-plan.json
-upgrd verify   --plan ./upgrd-out/upgrade-plan.json
-upgrd run      local --profile wildfly
-```
-
-## Development
-
-Built with Java 21 and Maven. Use Cursor (or any IDE) only for developing UpGrd itself — never as part of customer runtime.
-
-```bash
-mvn verify
-```
+- `upgrd-core` — discovery, analysis, planning
+- `upgrd-cli` — command-line interface (shaded JAR)
