@@ -99,6 +99,11 @@ public final class RecipeCatalog {
                 "Document SQL concatenation hotspots for PreparedStatement refactor",
                 true));
         register(new RecipeDefinition(
+                "remediate-deserialization",
+                "upgrd:RemediateDeserialization",
+                "Document unsafe deserialization hotspots for manual refactor",
+                true));
+        register(new RecipeDefinition(
                 "openrewrite-scaffold",
                 "upgrd:OpenRewriteScaffold",
                 "Scaffold OpenRewrite YAML for optional AST migrations",

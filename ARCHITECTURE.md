@@ -148,7 +148,7 @@ Security is not deferred to a separate verify-only phase. UpGrd:
 | Weak hash (MD5/SHA-1) | `upgrd:RemediateWeakHash` | Replaced with SHA-256 |
 | Hardcoded secrets | `upgrd:ExternalizeSecrets` | `${ENV_VAR}` placeholders |
 | SQL concatenation | — | Reported; manual PreparedStatement refactor |
-| Unsafe deserialization | — | Reported; requires design review |
+| Unsafe deserialization | `upgrd:RemediateDeserialization` | Advisory hints file; manual refactor |
 
 ## Automation-ready migrated applications
 
@@ -206,3 +206,4 @@ Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed meta
 | **M4** | `verify` + security scan + audit UI (dashboard, diffs, export) |
 | **M5** | Anti-pattern rules + PDF/JSON/HTML audit export + OpenRewrite scaffold |
 | **M5+** | `upgrd wildfly` CLI + `upgrd rewrite run` OpenRewrite Maven execution |
+| **M6** | Verify WildFly smoke/deploy integration + deserialization advisory hints |

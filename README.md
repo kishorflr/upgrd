@@ -63,7 +63,7 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
 | `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
 | `apply` | Source migration, deploy overlays, security fixes, JUnit 5 smoke tests, automation metadata |
-| `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify` (SpotBugs + OWASP) |
+| `verify` | Runs `mvn verify` on migrated app; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy` |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
 | `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run` supported) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |

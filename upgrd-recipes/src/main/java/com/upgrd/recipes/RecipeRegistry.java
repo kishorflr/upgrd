@@ -10,6 +10,7 @@ import com.upgrd.recipes.logging.Log4j1ToSlf4jRecipe;
 import com.upgrd.recipes.security.ExternalizeSecretsRecipe;
 import com.upgrd.recipes.security.RemediateWeakHashRecipe;
 import com.upgrd.recipes.security.SqlConcatenationHintsRecipe;
+import com.upgrd.recipes.security.UnsafeDeserializationHintsRecipe;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -30,6 +31,7 @@ public final class RecipeRegistry {
         register(new RemediateWeakHashRecipe());
         register(new ExternalizeSecretsRecipe());
         register(new SqlConcatenationHintsRecipe());
+        register(new UnsafeDeserializationHintsRecipe());
     }
 
     public Optional<FileRecipe> resolve(String coordinate) {

@@ -217,6 +217,7 @@ public final class UpgradePlanner {
             case "upgrd:RemediateWeakHash" -> "remediate-weak-crypto";
             case "upgrd:ExternalizeSecrets" -> "remediate-secrets";
             case "upgrd:RemediateSqlConcatenation" -> "remediate-sql-concatenation";
+            case "upgrd:RemediateDeserialization" -> "remediate-deserialization";
             default -> "remediate-" + recipeId.replace("upgrd:", "").toLowerCase();
         };
     }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.model.VerifyReport;
+import com.upgrd.core.model.VerifyReport.WildflySmoke;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,7 +33,8 @@ public final class VerifyReportWriter {
             boolean securityScan,
             String command,
             Path logFile,
-            String logText) {
+            String logText,
+            WildflySmoke wildflySmoke) {
         return new VerifyReport(
                 AnalyzeEngine.VERSION,
                 Instant.now(),
@@ -41,10 +43,32 @@ public final class VerifyReportWriter {
                 securityScan,
                 command,
                 logFile == null ? null : logFile.toString(),
-                summarize(logText, passed, securityScan));
+                summarize(logText, passed, securityScan, wildflySmoke),
+                wildflySmoke);
     }
 
-    private List<String> summarize(String logText, boolean passed, boolean securityScan) {
+    public VerifyReport build(
+            boolean passed,
+            int exitCode,
+            boolean securityScan,
+            String command,
+            Path logFile,
+            String logText) {
+        return build(passed, exitCode, securityScan, command, logFile, logText, null);
+    }
+
+    public static WildflySmoke toWildflySmoke(WildFlySmokeChecker.SmokeCheckResult smoke) {
+        return new WildflySmoke(
+                true,
+                smoke.scaffoldPresent(),
+                smoke.dockerAvailable(),
+                smoke.containerRunning(),
+                smoke.warBuilt(),
+                smoke.deployed(),
+                smoke.notes());
+    }
+
+    private List<String> summarize(String logText, boolean passed, boolean securityScan, WildflySmoke wildfly) {
         List<String> lines = new ArrayList<>();
         if (passed) {
             lines.add("Maven verify completed successfully");
@@ -53,6 +77,14 @@ public final class VerifyReportWriter {
         }
         if (securityScan) {
             lines.add("Security scan profile (-Psecurity-verify) was enabled");
+        }
+        if (wildfly != null && wildfly.checked()) {
+            lines.add("WildFly smoke: scaffold "
+                    + (wildfly.scaffoldPresent() ? "present" : "missing")
+                    + ", Docker " + (wildfly.dockerAvailable() ? "available" : "not found"));
+            if (wildfly.deployed()) {
+                lines.add("WildFly WAR staged/deployed via upgrd wildfly deploy");
+            }
         }
         if (logText != null) {
             if (logText.contains("BUILD FAILURE")) {

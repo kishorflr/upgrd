@@ -238,6 +238,25 @@ function renderVerify(verify) {
     verify.summaryLines.forEach(line => ul.appendChild(el('li', null, line)));
     el_.appendChild(ul);
   }
+  if (verify.wildflySmoke && verify.wildflySmoke.checked) {
+    const wf = verify.wildflySmoke;
+    el_.appendChild(el('h3', null, 'WildFly'));
+    const dl2 = el('dl', 'grid');
+    [['Scaffold', wf.scaffoldPresent ? 'present' : 'missing'],
+     ['Docker', wf.dockerAvailable ? 'available' : 'not found'],
+     ['Container', wf.containerRunning ? 'running' : 'stopped'],
+     ['WAR built', wf.warBuilt ? 'yes' : 'no'],
+     ['Deployed', wf.deployed ? 'yes' : 'no']].forEach(([k, v]) => {
+      dl2.appendChild(el('dt', null, k));
+      dl2.appendChild(el('dd', null, String(v)));
+    });
+    el_.appendChild(dl2);
+    if (wf.notes && wf.notes.length) {
+      const ul = el('ul');
+      wf.notes.forEach(note => ul.appendChild(el('li', null, note)));
+      el_.appendChild(ul);
+    }
+  }
 }
 
 function renderDocumentation(doc) {

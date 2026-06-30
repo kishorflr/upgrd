@@ -145,7 +145,7 @@ public final class SecurityAnalyzer {
                 int line = lineOf(content, "ObjectInputStream");
                 findings.add(finding(counter, "HIGH", "deserialization", "CWE-502", rel, List.of(line, line),
                         "Java deserialization without validation",
-                        "Replace with JSON/XML parser or validate stream", "upgrd:RemediateDeserialization", false));
+                        "Replace with JSON/XML parser or validate stream", "upgrd:RemediateDeserialization", true));
             }
         } catch (IOException ignored) {
             // skip unreadable files

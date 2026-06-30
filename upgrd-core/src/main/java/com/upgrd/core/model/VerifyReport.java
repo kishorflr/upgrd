@@ -14,5 +14,16 @@ public record VerifyReport(
         boolean securityScan,
         String command,
         String logFile,
-        List<String> summaryLines) {
+        List<String> summaryLines,
+        WildflySmoke wildflySmoke) {
+
+    public record WildflySmoke(
+            boolean checked,
+            boolean scaffoldPresent,
+            boolean dockerAvailable,
+            boolean containerRunning,
+            boolean warBuilt,
+            boolean deployed,
+            List<String> notes) {
+    }
 }

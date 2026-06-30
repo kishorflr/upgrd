@@ -1,6 +1,7 @@
 package com.upgrd.cli.command;
 
 import com.upgrd.core.failure.FailureReportService;
+import com.upgrd.core.model.VerifyReport.WildflySmoke;
 import com.upgrd.core.verify.VerifyReportWriter;
 import com.upgrd.core.verify.WildFlySmokeChecker;
 import picocli.CommandLine.Command;
@@ -29,8 +30,12 @@ public final class VerifyCommand implements Callable<Integer> {
     private boolean securityScan;
 
     @Option(names = "--wildfly-smoke", defaultValue = "false",
-            description = "After verify, check WildFly deploy scaffold (and Docker availability)")
+            description = "After verify, check WildFly deploy scaffold and Docker status")
     private boolean wildflySmoke;
+
+    @Option(names = "--wildfly-deploy", defaultValue = "false",
+            description = "After successful verify, build and stage WAR for WildFly (implies --wildfly-smoke)")
+    private boolean wildflyDeploy;
 
     @Override
     public Integer call() throws Exception {
@@ -66,8 +71,22 @@ public final class VerifyCommand implements Callable<Integer> {
         int exitCode = process.waitFor();
         String commandLine = String.join(" ", command);
 
+        WildflySmoke wildflySection = null;
+        boolean runWildfly = wildflySmoke || wildflyDeploy;
+        if (runWildfly && exitCode == 0) {
+            var checker = new WildFlySmokeChecker();
+            var smoke = wildflyDeploy
+                    ? checker.checkAndDeploy(output, true)
+                    : checker.check(output);
+            wildflySection = VerifyReportWriter.toWildflySmoke(smoke);
+            System.out.println("  WildFly smoke check:");
+            smoke.notes().forEach(note -> System.out.printf("    %s%n", note));
+        } else if (runWildfly) {
+            System.out.println("  WildFly smoke check: skipped (verify failed)");
+        }
+
         var verifyReport = new VerifyReportWriter().build(
-                exitCode == 0, exitCode, securityScan, commandLine, logFile, log);
+                exitCode == 0, exitCode, securityScan, commandLine, logFile, log, wildflySection);
         Path verifyReportPath = new VerifyReportWriter().write(verifyReport, output);
 
         if (exitCode == 0) {
@@ -83,12 +102,6 @@ public final class VerifyCommand implements Callable<Integer> {
                 System.out.println("  Anonymous failure report (safe for external AI):");
                 written.forEach(path -> System.out.printf("    %s%n", path));
             }
-        }
-
-        if (wildflySmoke) {
-            var smoke = new WildFlySmokeChecker().check(migratedDir);
-            System.out.println("  WildFly smoke check:");
-            smoke.notes().forEach(note -> System.out.printf("    %s%n", note));
         }
 
         return exitCode;
