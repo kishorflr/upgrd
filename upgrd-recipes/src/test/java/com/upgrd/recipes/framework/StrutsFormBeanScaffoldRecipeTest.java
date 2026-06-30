@@ -51,6 +51,43 @@ class StrutsFormBeanScaffoldRecipeTest {
     }
 
     @Test
+    void scaffoldsSizeFromMinlengthAndMaxlength() throws Exception {
+        Path webInf = projectRoot.resolve("src/main/webapp/WEB-INF");
+        Files.createDirectories(webInf);
+        Files.writeString(webInf.resolve("struts-config.xml"), """
+                <struts-config>
+                  <form-beans>
+                    <form-bean name="userForm" type="com.example.UserForm"/>
+                  </form-beans>
+                </struts-config>
+                """);
+        Files.writeString(webInf.resolve("validation.xml"), """
+                <form-validation>
+                  <formset>
+                    <form name="userForm">
+                      <field property="username" depends="required,minlength">
+                        <var><var-name>minlength</var-name><var-value>3</var-value></var>
+                      </field>
+                      <field property="password" depends="maxlength">
+                        <var><var-name>maxlength</var-name><var-value>32</var-value></var>
+                      </field>
+                    </form>
+                  </formset>
+                </form-validation>
+                """);
+        Files.createDirectories(projectRoot.resolve("src/main/java/com/example"));
+        Files.writeString(projectRoot.resolve("src/main/java/com/example/UserAction.java"), """
+                package com.example;
+                public class UserAction {}
+                """);
+
+        var changes = new StrutsFormBeanScaffoldRecipe().generateChanges(projectRoot);
+        String source = changes.get(0).after();
+        assertTrue(source.contains("@Size(min = 3)"));
+        assertTrue(source.contains("@Size(max = 32)"));
+    }
+
+    @Test
     void scaffoldsEmailValidation() throws Exception {
         Path webInf = projectRoot.resolve("src/main/webapp/WEB-INF");
         Files.createDirectories(webInf);

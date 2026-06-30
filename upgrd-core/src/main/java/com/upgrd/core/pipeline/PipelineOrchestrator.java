@@ -68,6 +68,10 @@ public final class PipelineOrchestrator {
             }
         }
 
+        boolean runWildflyHttp = request.wildflyHttp()
+                || (request.wildflyHttpWhenWebProfile()
+                && discovery.profile() == ProjectProfile.LEGACY_WEB);
+
         VerifyResult verifyResult = null;
         if (request.runVerify()) {
             verifyResult = new VerifyEngine().verify(new VerifyOptions(
@@ -75,7 +79,7 @@ public final class PipelineOrchestrator {
                     request.securityScan(),
                     request.wildflySmoke(),
                     request.wildflyDeploy(),
-                    request.wildflyHttp()));
+                    runWildflyHttp));
             phases.add("verify");
             if (!verifyResult.passed()) {
                 return new PipelineResult(false, phases, planFile, applyReport, verifyResult, rewriteResult);
@@ -115,6 +119,7 @@ public final class PipelineOrchestrator {
             boolean wildflySmoke,
             boolean wildflyDeploy,
             boolean wildflyHttp,
+            boolean wildflyHttpWhenWebProfile,
             boolean runRewrite,
             boolean rewriteDryRun,
             String rewriteRecipe,

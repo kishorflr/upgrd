@@ -108,6 +108,7 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
         String className = dot >= 0 ? fqcn.substring(dot + 1) : fqcn;
         boolean needsNotNull = fields.stream().anyMatch(f -> f.hasRule("required"));
         boolean needsEmail = fields.stream().anyMatch(f -> f.hasRule("email"));
+        boolean needsSize = fields.stream().anyMatch(StrutsValidationIndex.ValidationField::hasSizeConstraint);
 
         StringBuilder sb = new StringBuilder();
         if (!pkg.isBlank()) {
@@ -119,7 +120,10 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
         if (needsEmail) {
             sb.append("import jakarta.validation.constraints.Email;\n");
         }
-        if (needsNotNull || needsEmail) {
+        if (needsSize) {
+            sb.append("import jakarta.validation.constraints.Size;\n");
+        }
+        if (needsNotNull || needsEmail || needsSize) {
             sb.append("\n");
         }
         sb.append("""
@@ -150,6 +154,10 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
 
     private String fieldAnnotations(StrutsValidationIndex.ValidationField field) {
         StringBuilder annotations = new StringBuilder();
+        String size = sizeAnnotation(field);
+        if (!size.isBlank()) {
+            annotations.append(size);
+        }
         if (field.hasRule("required")) {
             annotations.append("    @NotNull\n");
         }
@@ -157,5 +165,20 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
             annotations.append("    @Email\n");
         }
         return annotations.toString();
+    }
+
+    private String sizeAnnotation(StrutsValidationIndex.ValidationField field) {
+        Integer min = field.minLength();
+        Integer max = field.maxLength();
+        if (min != null && max != null) {
+            return "    @Size(min = %d, max = %d)\n".formatted(min, max);
+        }
+        if (min != null) {
+            return "    @Size(min = %d)\n".formatted(min);
+        }
+        if (max != null) {
+            return "    @Size(max = %d)\n".formatted(max);
+        }
+        return "";
     }
 }

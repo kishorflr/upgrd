@@ -5,11 +5,19 @@
 <form-validation>
   <formset>
     <form name="userForm">
-      <field property="username" depends="required">
+      <field property="username" depends="required,minlength">
         <arg key="user.username"/>
+        <var>
+          <var-name>minlength</var-name>
+          <var-value>3</var-value>
+        </var>
       </field>
-      <field property="email" depends="required,email">
+      <field property="email" depends="required,email,maxlength">
         <arg key="user.email"/>
+        <var>
+          <var-name>maxlength</var-name>
+          <var-value>128</var-value>
+        </var>
       </field>
     </form>
   </formset>

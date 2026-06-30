@@ -54,6 +54,10 @@ public final class PipelineRunCommand implements Callable<Integer> {
     @Option(names = "--wildfly-http", defaultValue = "false", description = "After verify, HTTP probe WildFly")
     private boolean wildflyHttp;
 
+    @Option(names = "--no-wildfly-http", defaultValue = "false",
+            description = "Disable default WildFly HTTP probe for legacy-web profile")
+    private boolean noWildflyHttp;
+
     @Option(names = "--serve-ui", defaultValue = "false",
             description = "After pipeline completes, start the audit dashboard (blocks until Ctrl+C)")
     private boolean serveUi;
@@ -77,8 +81,17 @@ public final class PipelineRunCommand implements Callable<Integer> {
             description = "Run OpenRewrite after verify instead of after apply")
     private boolean rewriteAfterVerify;
 
+    @Option(names = "--rewrite-sql-scan", defaultValue = "false",
+            description = "Preset: SQL concatenation OpenRewrite dry-run after verify")
+    private boolean rewriteSqlScan;
+
     @Override
     public Integer call() throws Exception {
+        boolean effectiveRewrite = rewrite || rewriteSqlScan;
+        boolean effectiveAfterVerify = rewriteAfterVerify || rewriteSqlScan;
+        boolean effectiveDryRun = rewriteDryRun || rewriteSqlScan;
+        String effectiveRecipe = rewriteSqlScan ? OpenRewriteRunner.SQL_SCAN_RECIPE : rewriteRecipe;
+
         var result = new PipelineOrchestrator().run(new PipelineRequest(
                 source,
                 war,
@@ -92,10 +105,11 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 wildflySmoke,
                 wildflyDeploy,
                 wildflyHttp,
-                rewrite,
-                rewriteDryRun,
-                rewriteRecipe,
-                rewriteAfterVerify));
+                !noWildflyHttp,
+                effectiveRewrite,
+                effectiveDryRun,
+                effectiveRecipe,
+                effectiveAfterVerify));
 
         System.out.println("UpGrd pipeline complete.");
         System.out.printf("  Phases: %s%n", String.join(" → ", result.completedPhases()));

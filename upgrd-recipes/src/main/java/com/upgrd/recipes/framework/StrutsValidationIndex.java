@@ -20,9 +20,12 @@ public final class StrutsValidationIndex {
     private static final Pattern FORM = Pattern.compile(
             "<form\\s+name=\"([^\"]+)\">(.*?)</form>",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern FIELD = Pattern.compile(
-            "<field\\s+property=\"([^\"]+)\"(?:\\s+depends=\"([^\"]+)\")?",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern FIELD_BLOCK = Pattern.compile(
+            "<field\\s+property=\"([^\"]+)\"(?:\\s+depends=\"([^\"]+)\")?\\s*(?:/>|>(.*?)</field>)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern VAR = Pattern.compile(
+            "<var-name>\\s*([^<]+?)\\s*</var-name>\\s*<var-value>\\s*([^<]+?)\\s*</var-value>",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     private final Map<String, List<ValidationField>> fieldsByForm = new LinkedHashMap<>();
 
@@ -55,20 +58,34 @@ public final class StrutsValidationIndex {
         while (formMatcher.find()) {
             String formName = formMatcher.group(1);
             List<ValidationField> properties = new ArrayList<>();
-            Matcher fieldMatcher = FIELD.matcher(formMatcher.group(2));
+            Matcher fieldMatcher = FIELD_BLOCK.matcher(formMatcher.group(2));
             while (fieldMatcher.find()) {
                 String property = fieldMatcher.group(1);
                 String dependsRaw = fieldMatcher.group(2);
+                String fieldBody = fieldMatcher.group(3);
                 List<String> depends = dependsRaw == null || dependsRaw.isBlank()
                         ? List.of()
                         : List.of(dependsRaw.split("\\s*,\\s*"));
-                properties.add(new ValidationField(property, depends));
+                Map<String, String> vars = parseVars(fieldBody);
+                properties.add(new ValidationField(property, depends, vars));
             }
             if (!properties.isEmpty()) {
                 result.put(formName, List.copyOf(properties));
             }
         }
         return result;
+    }
+
+    private static Map<String, String> parseVars(String fieldBody) {
+        if (fieldBody == null || fieldBody.isBlank()) {
+            return Map.of();
+        }
+        Map<String, String> vars = new LinkedHashMap<>();
+        Matcher matcher = VAR.matcher(fieldBody);
+        while (matcher.find()) {
+            vars.put(matcher.group(1).trim().toLowerCase(), matcher.group(2).trim());
+        }
+        return vars;
     }
 
     private StrutsValidationIndex(Map<String, List<ValidationField>> fieldsByForm) {
@@ -83,10 +100,38 @@ public final class StrutsValidationIndex {
         return fieldsFor(formName).stream().map(ValidationField::property).toList();
     }
 
-    public record ValidationField(String property, List<String> depends) {
+    public record ValidationField(String property, List<String> depends, Map<String, String> vars) {
+
+        public ValidationField(String property, List<String> depends) {
+            this(property, depends, Map.of());
+        }
 
         public boolean hasRule(String rule) {
             return depends.stream().anyMatch(d -> d.equalsIgnoreCase(rule));
+        }
+
+        public Integer minLength() {
+            return parseLength("minlength");
+        }
+
+        public Integer maxLength() {
+            return parseLength("maxlength");
+        }
+
+        private Integer parseLength(String key) {
+            String value = vars.get(key);
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            try {
+                return Integer.parseInt(value.trim());
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+
+        public boolean hasSizeConstraint() {
+            return minLength() != null || maxLength() != null;
         }
     }
 }

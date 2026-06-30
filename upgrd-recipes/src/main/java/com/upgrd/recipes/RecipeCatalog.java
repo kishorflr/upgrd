@@ -29,6 +29,11 @@ public final class RecipeCatalog {
                 "Scaffold typed form POJOs from Struts form-bean definitions",
                 true));
         register(new RecipeDefinition(
+                "struts-form-binding",
+                "upgrd:StrutsFormBindingAdvice",
+                "Scaffold @ControllerAdvice for Struts ActionForm binding",
+                true));
+        register(new RecipeDefinition(
                 "struts-to-spring-mvc",
                 "upgrd:StrutsActionToSpringController",
                 "Migrate Struts actions to Spring MVC controllers",

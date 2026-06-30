@@ -64,9 +64,9 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
-| `pipeline run` | Full analyze → plan → apply → verify in one command (`--rewrite`, `--rewrite-after-verify`, `--serve-ui`) |
-| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (validated form beans, GET/POST controllers, Thymeleaf views), Spring 4→6, javax→jakarta, raw collections, security fixes |
-| **Recipes (planned)** | `@Size` from Struts minlength/maxlength, OpenRewrite SQL search recipes |
+| `pipeline run` | Full analyze → plan → apply → verify (`--rewrite-sql-scan`, `--rewrite-after-verify`, `--serve-ui`; WildFly HTTP on by default for legacy-web) |
+| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (validated form beans with `@Size`, `@ControllerAdvice` binding, GET/POST controllers), Spring 4→6, javax→jakarta, security fixes |
+| **Recipes (planned)** | Struts mask/creditCard validation rules, OpenRewrite SQL search recipes |
 
 ### WildFly (local smoke deploy)
 
@@ -128,6 +128,11 @@ upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-w
 
 # OpenRewrite after verify (when build must pass first):
 upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-web --rewrite --rewrite-after-verify
+
+# SQL concatenation scan preset (dry-run after verify):
+upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-web --rewrite-sql-scan
+
+# legacy-web runs WildFly HTTP probe during verify by default; opt out with --no-wildfly-http
 ```
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).

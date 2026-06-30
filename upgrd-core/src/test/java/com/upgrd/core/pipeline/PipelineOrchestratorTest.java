@@ -37,6 +37,7 @@ class PipelineOrchestratorTest {
                 false,
                 false,
                 false,
+                true,
                 false,
                 false,
                 OpenRewriteRunner.DEFAULT_RECIPE,

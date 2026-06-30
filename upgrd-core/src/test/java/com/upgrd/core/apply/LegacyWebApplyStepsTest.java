@@ -43,6 +43,12 @@ class LegacyWebApplyStepsTest {
         assertTrue(Files.isRegularFile(userForm), "form bean should be scaffolded");
         String formSource = Files.readString(userForm);
         assertTrue(formSource.contains("@NotNull"), formSource);
+        assertTrue(formSource.contains("@Size(min = 3)"), formSource);
+
+        Path bindingAdvice = output.resolve(
+                "migrated/app-web/src/main/java/com/example/config/StrutsFormBindingAdvice.java");
+        assertTrue(Files.isRegularFile(bindingAdvice), "form binding advice should be scaffolded");
+        assertTrue(Files.readString(bindingAdvice).contains("@ControllerAdvice"), bindingAdvice.toString());
 
         Path userAction = output.resolve("migrated/app-web/src/main/java/com/example/UserAction.java");
         String action = Files.readString(userAction);

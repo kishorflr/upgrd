@@ -202,6 +202,14 @@ public final class UpgradePlanner {
                     fp.evidence().stream().filter(e -> e.contains("Struts")).limit(5).toList(),
                     StepMode.AUTOMATED));
             steps.add(step(
+                    "struts-form-binding",
+                    "framework",
+                    "Scaffold @ControllerAdvice for Struts ActionForm → typed form binding",
+                    "upgrd:StrutsFormBindingAdvice",
+                    "Spring MVC needs @ModelAttribute/@InitBinder stubs when replacing Struts ActionForm session/request scope",
+                    fp.evidence().stream().filter(e -> e.contains("struts-config")).limit(5).toList(),
+                    StepMode.AUTOMATED));
+            steps.add(step(
                     "struts-config-to-spring",
                     "framework",
                     "Convert struts-config.xml action mappings to Spring MVC hints",
