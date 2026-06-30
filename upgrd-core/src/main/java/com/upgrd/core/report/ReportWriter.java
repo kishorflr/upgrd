@@ -86,6 +86,22 @@ public final class ReportWriter {
         return null;
     }
 
+    public com.upgrd.core.model.SyncReport readSyncReport(Path outputDir) throws IOException {
+        Path syncFile = outputDir.resolve("sync-report.json");
+        if (Files.isRegularFile(syncFile)) {
+            return mapper.readValue(syncFile.toFile(), com.upgrd.core.model.SyncReport.class);
+        }
+        Path analysisFile = outputDir.resolve("analysis-report.json");
+        if (!Files.isRegularFile(analysisFile)) {
+            return null;
+        }
+        var analysis = mapper.readTree(Files.readString(analysisFile));
+        if (analysis.has("sync")) {
+            return mapper.treeToValue(analysis.get("sync"), com.upgrd.core.model.SyncReport.class);
+        }
+        return null;
+    }
+
     public Path writeChangeLedger(ChangeLedger ledger, Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
         Path file = outputDir.resolve("change-ledger.json");

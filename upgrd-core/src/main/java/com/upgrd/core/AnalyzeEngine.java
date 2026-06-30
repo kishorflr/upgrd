@@ -29,7 +29,7 @@ import java.util.Set;
 
 public final class AnalyzeEngine {
 
-    public static final String VERSION = "1.4.0-SNAPSHOT";
+    public static final String VERSION = "1.5.0-SNAPSHOT";
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();
@@ -53,8 +53,12 @@ public final class AnalyzeEngine {
         Set<String> warClasses = input.warFile() != null
                 ? warInspector.listApplicationClasses(input.warFile())
                 : Set.of();
+        Set<String> warLibs = input.warFile() != null
+                ? warInspector.listLibraryJars(input.warFile())
+                : Set.of();
         Set<String> sourceClasses = sourceInspector.listSourceClasses(input.sourceRoot(), discovery.sourceRoots());
-        SyncReport sync = syncAnalyzer.compare(warClasses, sourceClasses);
+        Set<String> sourceLibs = sourceInspector.listLibraryJars(input.sourceRoot());
+        SyncReport sync = syncAnalyzer.compare(warClasses, sourceClasses, warLibs, sourceLibs);
         UsageReport usage = logUsageAnalyzer.analyze(input.logFiles(), warClasses);
         var designAdvisory = designAdvisoryAnalyzer.analyze(
                 input.sourceRoot(),
@@ -90,6 +94,7 @@ public final class AnalyzeEngine {
         reportWriter.writeSecurityReport(security, outputDir);
         reportWriter.writeAntiPatternReport(antiPatterns, outputDir);
         mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
+        mapper.writeValue(outputDir.resolve("sync-report.json").toFile(), report.sync());
         var documentation = applicationDocumenter.documentAnalyzePhase(
                 report, security, sourceRoot.toAbsolutePath().normalize().toString());
         documentationWriter.write(documentation, outputDir);

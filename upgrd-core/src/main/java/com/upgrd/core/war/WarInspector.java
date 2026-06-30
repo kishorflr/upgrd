@@ -23,6 +23,19 @@ public final class WarInspector {
         return classes;
     }
 
+    public Set<String> listLibraryJars(Path warFile) throws IOException {
+        Set<String> jars = new TreeSet<>();
+        try (ZipFile zip = new ZipFile(warFile.toFile())) {
+            zip.stream()
+                    .map(ZipEntry::getName)
+                    .filter(name -> name.startsWith("WEB-INF/lib/"))
+                    .filter(name -> name.endsWith(".jar"))
+                    .map(name -> name.substring("WEB-INF/lib/".length()))
+                    .forEach(jars::add);
+        }
+        return jars;
+    }
+
     private String toQualifiedName(String entryName) {
         String relative = entryName.substring("WEB-INF/classes/".length(), entryName.length() - ".class".length());
         return relative.replace('/', '.');

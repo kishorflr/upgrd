@@ -51,7 +51,9 @@ public final class PipelineOrchestrator {
                 request.targetJava(),
                 request.productionServer(),
                 false,
-                security);
+                security,
+                analysis.sync(),
+                analysis.usage());
         Path planFile = planner.writePlan(plan, request.output());
         new ReportWriter().writeChangeLedger(
                 new ReportWriter().previewFromPlan(plan, request.source()),

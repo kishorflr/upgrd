@@ -237,12 +237,12 @@ analyze (logs + WAR + source) → plan → preview (before/after) → user confi
 | Milestone | Delivers |
 |-----------|----------|
 | **M15** | Plan preview with real file diffs; `ChangeClassification` on steps; `pipeline run` stops after preview; `--confirm` to apply; Review tab in audit UI |
-| **M16** | Persist user approval in `approved-plan.json`; `apply` and `pipeline run --confirm` respect approved step IDs; UI checkboxes + local POST |
-| **M17** | WAR classpath and dependency drift in sync report; planner prioritizes WAR-only classes and log hot paths |
+| **M16** | `approved-plan.json`; `plan approve`; apply filters by approval; UI checkboxes + local POST |
+| **M17** | WAR `WEB-INF/lib` inventory, sync severity (NONE→CRITICAL), `sync-report.json`, planner war-source-sync / war-lib-align steps |
 | **M18** | Catalog of unsupported APIs with replacements; link findings to preview diffs and advisories |
 | **M19** | Apply merges production WAR truth into migrated source (conflict markers, decompile policy) |
 | **M20** | End-to-end fixture, operator docs, tagged release |
 
-**Current gaps after M14:** WAR is analyze-only; apply uses source tree. No pre-apply dashboard with categorized diffs. `pipeline run` auto-applied until M15.
+**Current gaps after M17:** Apply still uses source tree; WAR informs plan/sync only. M19 adds WAR-authoritative apply.
 
 **Recommended workflow today:** `analyze` → `plan upgrade --dry-run` → `plan preview` → UI Review tab → `plan upgrade --dry-run=false` → `apply` — or `pipeline run --serve-ui` then re-run with `--confirm`.

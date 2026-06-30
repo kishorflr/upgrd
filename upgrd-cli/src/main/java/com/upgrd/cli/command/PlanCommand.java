@@ -57,11 +57,13 @@ public final class PlanCommand implements Runnable {
             ProjectProfile profileOverride = parseProfile(profile);
             ProjectDiscovery discovery = new ProjectDiscoveryService().discover(source, profileOverride);
             SecurityReport security = new SecurityAnalyzer().analyze(source, discovery);
+            ReportWriter reportWriter = new ReportWriter();
+            var sync = reportWriter.readSyncReport(output);
+            var usage = reportWriter.readUsageReport(output);
             UpgradePlanner planner = new UpgradePlanner();
-            UpgradePlan plan = planner.plan(discovery, target, server, dryRun, security);
+            UpgradePlan plan = planner.plan(discovery, target, server, dryRun, security, sync, usage);
             Path planFile = planner.writePlan(plan, output);
 
-            ReportWriter reportWriter = new ReportWriter();
             reportWriter.writeSecurityReport(security, output);
             reportWriter.writeChangeLedger(reportWriter.previewFromPlan(plan, source), output);
 
@@ -74,6 +76,9 @@ public final class PlanCommand implements Runnable {
                             step.category(), step.mode(), step.description()));
             System.out.printf("  Plan: %s%n", planFile.toAbsolutePath());
             System.out.printf("  Security findings: %d (auto-fixable steps added to plan)%n", security.openCount());
+            if (sync != null && sync.severity() != null) {
+                System.out.printf("  WAR sync: %s — %s%n", sync.severity(), sync.severityReason());
+            }
             System.out.printf("  Change ledger preview: %s/change-ledger.json%n", output.toAbsolutePath());
             return 0;
         }

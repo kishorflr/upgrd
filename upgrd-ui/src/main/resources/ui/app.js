@@ -75,11 +75,23 @@ function renderSync(sync) {
     el_.appendChild(el('p', 'empty', 'Provide --war during analyze to compare production WAR vs source'));
     return;
   }
+  if (sync.severity) {
+    const h = el('h3');
+    h.textContent = 'Sync severity: ' + sync.severity;
+    h.prepend(badge(sync.severity, 'risk-' + syncSeverityClass(sync.severity)));
+    el_.appendChild(h);
+    if (sync.severityReason) {
+      el_.appendChild(el('p', 'reason', sync.severityReason));
+    }
+  }
   const dl = el('dl', 'grid');
   [['WAR classes', sync.warClassCount], ['Source classes', sync.sourceClassCount],
    ['Only in WAR', (sync.onlyInWar || []).length],
    ['Only in source', (sync.onlyInSource || []).length],
-   ['In both', (sync.inBoth || []).length]].forEach(([k, v]) => {
+   ['In both', (sync.inBoth || []).length],
+   ['WAR libs', sync.warLibCount || 0],
+   ['Source libs', sync.sourceLibCount || 0],
+   ['Libs only in WAR', (sync.onlyInWarLibs || []).length]].forEach(([k, v]) => {
     dl.appendChild(el('dt', null, k));
     dl.appendChild(el('dd', null, String(v)));
   });
@@ -91,6 +103,20 @@ function renderSync(sync) {
     sync.onlyInWar.slice(0, 15).forEach(c => ul.appendChild(el('li', null, c)));
     el_.appendChild(ul);
   }
+  if ((sync.onlyInWarLibs || []).length) {
+    const h = el('h3', null, 'Production-only JARs (WEB-INF/lib)');
+    el_.appendChild(h);
+    const ul = el('ul');
+    sync.onlyInWarLibs.slice(0, 15).forEach(c => ul.appendChild(el('li', null, c)));
+    el_.appendChild(ul);
+  }
+}
+
+function syncSeverityClass(severity) {
+  if (severity === 'CRITICAL' || severity === 'HIGH') return 'high';
+  if (severity === 'MEDIUM') return 'medium';
+  if (severity === 'IN_SYNC' || severity === 'LOW') return 'low';
+  return 'pending';
 }
 
 function renderPlan(plan) {

@@ -13,8 +13,12 @@ import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.TechnologyFingerprint;
 import com.upgrd.core.model.SecurityFinding;
 import com.upgrd.core.model.SecurityReport;
+import com.upgrd.core.model.SyncReport;
+import com.upgrd.core.model.SyncSeverity;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
+import com.upgrd.core.model.UsageHit;
+import com.upgrd.core.model.UsageReport;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,6 +36,17 @@ public final class UpgradePlanner {
             String productionServer,
             boolean dryRun,
             SecurityReport security) {
+        return plan(discovery, targetJava, productionServer, dryRun, security, null, null);
+    }
+
+    public UpgradePlan plan(
+            ProjectDiscovery discovery,
+            String targetJava,
+            String productionServer,
+            boolean dryRun,
+            SecurityReport security,
+            SyncReport sync,
+            UsageReport usage) {
         List<UpgradeStep> steps = new ArrayList<>();
         ProjectProfile profile = discovery.profile();
         TechnologyFingerprint fp = discovery.fingerprint();
@@ -71,6 +86,7 @@ public final class UpgradePlanner {
         }
 
         addSecurityRemediationSteps(steps, security);
+        addWarSyncSteps(steps, sync, usage);
 
         if (discovery.containsWeblogicApi() || fp.servletApi() == ServletApi.JAVAX) {
             steps.add(step(
@@ -170,7 +186,105 @@ public final class UpgradePlanner {
                 productionServer,
                 "wildfly",
                 profile,
-                steps);
+                enrichWithWarContext(steps, sync, usage));
+    }
+
+    private void addWarSyncSteps(List<UpgradeStep> steps, SyncReport sync, UsageReport usage) {
+        if (sync == null || sync.severity() == SyncSeverity.NONE) {
+            return;
+        }
+        if (sync.severity().ordinal() >= SyncSeverity.MEDIUM.ordinal()) {
+            steps.add(step(
+                    "war-source-sync",
+                    "sync",
+                    "Review WAR vs source drift (production is authoritative)",
+                    "upgrd:WarSourceSyncReview",
+                    sync.severityReason(),
+                    syncEvidence(sync, usage),
+                    StepMode.ADVISORY));
+        }
+        if (!sync.onlyInWarLibs().isEmpty()) {
+            steps.add(step(
+                    "war-lib-align",
+                    "sync",
+                    "Align source lib/ with production WEB-INF/lib dependencies",
+                    "upgrd:WarLibAlign",
+                    "Production WAR ships JARs missing from source lib — dependency drift blocks faithful upgrade",
+                    sync.onlyInWarLibs().stream().limit(10).map(j -> "war-lib:" + j).toList(),
+                    StepMode.ADVISORY));
+        }
+    }
+
+    private List<String> syncEvidence(SyncReport sync, UsageReport usage) {
+        List<String> evidence = new ArrayList<>();
+        evidence.add("severity=" + sync.severity());
+        sync.onlyInWar().stream().limit(5).forEach(c -> evidence.add("war-only:" + c));
+        sync.onlyInSource().stream().limit(3).forEach(c -> evidence.add("source-only:" + c));
+        if (usage != null && usage.hits() != null) {
+            for (UsageHit hit : usage.hits()) {
+                String name = hit.qualifiedName();
+                if (name != null && sync.onlyInWar().contains(name)) {
+                    evidence.add("log-hotpath:" + name + "(" + hit.hitCount() + ")");
+                }
+            }
+        }
+        return List.copyOf(evidence);
+    }
+
+    private List<UpgradeStep> enrichWithWarContext(
+            List<UpgradeStep> steps, SyncReport sync, UsageReport usage) {
+        if (sync == null || sync.onlyInWar().isEmpty()) {
+            return steps;
+        }
+        List<UpgradeStep> enriched = new ArrayList<>();
+        for (UpgradeStep step : steps) {
+            if ("convert-maven".equals(step.id())) {
+                List<String> evidence = new ArrayList<>(step.evidence());
+                evidence.add("war-only-classes=" + sync.onlyInWar().size());
+                sync.onlyInWar().stream().limit(5).forEach(c -> evidence.add("war:" + c));
+                enriched.add(rebuildStep(step, evidence, step.reason()
+                        + " — WAR has " + sync.onlyInWar().size() + " production-only class(es)"));
+            } else if ("test-scaffold".equals(step.id()) && usage != null) {
+                List<String> hotWarOnly = warOnlyHotPaths(sync, usage);
+                if (!hotWarOnly.isEmpty()) {
+                    List<String> evidence = new ArrayList<>(step.evidence());
+                    evidence.addAll(hotWarOnly);
+                    enriched.add(rebuildStep(step, evidence, step.reason()
+                            + " — prioritize smoke tests for log hot paths present only in WAR"));
+                } else {
+                    enriched.add(step);
+                }
+            } else {
+                enriched.add(step);
+            }
+        }
+        return enriched;
+    }
+
+    private List<String> warOnlyHotPaths(SyncReport sync, UsageReport usage) {
+        if (usage.hits() == null) {
+            return List.of();
+        }
+        List<String> paths = new ArrayList<>();
+        for (UsageHit hit : usage.hits()) {
+            String name = hit.qualifiedName();
+            if (name != null && sync.onlyInWar().contains(name)) {
+                paths.add("war-hotpath:" + name + "(" + hit.hitCount() + ")");
+            }
+        }
+        return paths.stream().limit(5).toList();
+    }
+
+    private UpgradeStep rebuildStep(UpgradeStep step, List<String> evidence, String reason) {
+        return new UpgradeStep(
+                step.id(),
+                step.category(),
+                step.description(),
+                step.recipe(),
+                reason,
+                List.copyOf(evidence),
+                step.mode(),
+                step.classification());
     }
 
     private void addLegacyWebSteps(List<UpgradeStep> steps, TechnologyFingerprint fp, String targetJava) {
@@ -344,7 +458,8 @@ public final class UpgradePlanner {
                     "remediate-weak-crypto", "remediate-secrets" -> ChangeClassification.MANDATORY;
             case "openrewrite-dry-run", "openrewrite-apply", "openrewrite-sql-scan",
                     "wildfly-local", "weblogic-adapters", "security-verify",
-                    "test-scaffold", "automation-ready", "openrewrite-scaffold" -> ChangeClassification.OPTIONAL;
+                    "test-scaffold", "automation-ready", "openrewrite-scaffold",
+                    "war-source-sync", "war-lib-align" -> ChangeClassification.OPTIONAL;
             default -> ChangeClassification.RECOMMENDED;
         };
     }

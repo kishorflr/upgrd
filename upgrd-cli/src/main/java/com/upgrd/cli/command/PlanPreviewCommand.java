@@ -49,7 +49,10 @@ public final class PlanPreviewCommand implements Callable<Integer> {
             ProjectProfile profileOverride = parseProfile(profile);
             ProjectDiscovery discovery = new ProjectDiscoveryService().discover(source, profileOverride);
             SecurityReport security = new SecurityAnalyzer().analyze(source, discovery);
-            plan = new UpgradePlanner().plan(discovery, target, server, true, security);
+            ReportWriter reportWriter = new ReportWriter();
+            var sync = reportWriter.readSyncReport(output);
+            var usage = reportWriter.readUsageReport(output);
+            plan = new UpgradePlanner().plan(discovery, target, server, true, security, sync, usage);
             new UpgradePlanner().writePlan(plan, output);
         }
 
