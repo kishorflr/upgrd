@@ -2,12 +2,12 @@ package com.upgrd.core.pipeline;
 
 import com.upgrd.core.AnalyzeEngine;
 import com.upgrd.core.apply.ApplyEngine;
-import com.upgrd.core.discovery.ProjectDiscoveryService;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.UpgradePlan;
+import com.upgrd.core.openrewrite.OpenRewriteRunner;
 import com.upgrd.core.plan.UpgradePlanner;
 import com.upgrd.core.report.ReportWriter;
 import com.upgrd.core.security.SecurityAnalyzer;
@@ -59,6 +59,19 @@ public final class PipelineOrchestrator {
         applyEngine.writeReport(applyReport, request.output());
         phases.add("apply");
 
+        OpenRewriteRunner.RewriteResult rewriteResult = null;
+        if (request.runRewrite()) {
+            rewriteResult = new OpenRewriteRunner().run(
+                    request.output(),
+                    request.rewriteDryRun(),
+                    false,
+                    request.rewriteRecipe());
+            phases.add("rewrite");
+            if (!rewriteResult.success()) {
+                return new PipelineResult(false, phases, planFile, applyReport, null, rewriteResult);
+            }
+        }
+
         VerifyResult verifyResult = null;
         if (request.runVerify()) {
             verifyResult = new VerifyEngine().verify(new VerifyOptions(
@@ -71,7 +84,7 @@ public final class PipelineOrchestrator {
         }
 
         boolean success = verifyResult == null || verifyResult.passed();
-        return new PipelineResult(success, phases, planFile, applyReport, verifyResult);
+        return new PipelineResult(success, phases, planFile, applyReport, verifyResult, rewriteResult);
     }
 
     public record PipelineRequest(
@@ -86,7 +99,10 @@ public final class PipelineOrchestrator {
             boolean securityScan,
             boolean wildflySmoke,
             boolean wildflyDeploy,
-            boolean wildflyHttp) {
+            boolean wildflyHttp,
+            boolean runRewrite,
+            boolean rewriteDryRun,
+            String rewriteRecipe) {
     }
 
     public record PipelineResult(
@@ -94,6 +110,7 @@ public final class PipelineOrchestrator {
             List<String> completedPhases,
             Path planFile,
             ApplyReport applyReport,
-            VerifyResult verifyResult) {
+            VerifyResult verifyResult,
+            OpenRewriteRunner.RewriteResult rewriteResult) {
     }
 }

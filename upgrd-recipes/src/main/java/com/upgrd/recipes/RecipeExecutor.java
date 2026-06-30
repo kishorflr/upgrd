@@ -22,10 +22,25 @@ public final class RecipeExecutor {
     }
 
     public RecipeRunResult runOnProject(FileRecipe recipe, Path projectRoot) throws IOException {
+        if (recipe instanceof BulkFileRecipe bulk) {
+            return applyBulk(bulk, projectRoot);
+        }
         if (recipe instanceof ProjectAwareRecipe aware) {
             aware.prepare(projectRoot);
         }
         return run(recipe, projectRoot, CONFIG_EXT);
+    }
+
+    private RecipeRunResult applyBulk(BulkFileRecipe recipe, Path projectRoot) throws IOException {
+        List<FileRecipe.FileChange> changes = new ArrayList<>();
+        for (FileRecipe.FileChange change : recipe.generateChanges(projectRoot)) {
+            Path target = projectRoot.resolve(change.relativePath());
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, change.after(), StandardCharsets.UTF_8);
+            changes.add(change);
+        }
+        return new RecipeRunResult(changes, changes.size(),
+                "Applied " + recipe.displayName() + " to " + changes.size() + " file(s)");
     }
 
     private RecipeRunResult run(FileRecipe recipe, Path root, Set<String> extensions) throws IOException {

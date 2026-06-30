@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <struts-config>
+  <form-beans>
+    <form-bean name="userForm" type="com.example.UserForm"/>
+  </form-beans>
   <action-mappings>
     <action path="/user" type="com.example.UserAction" name="userForm" scope="request">
       <forward name="success" path="/pages/success.jsp"/>

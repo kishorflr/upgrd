@@ -24,6 +24,11 @@ public final class RecipeCatalog {
                 "Migrate log4j 1.x to SLF4J",
                 true));
         register(new RecipeDefinition(
+                "struts-form-beans",
+                "upgrd:StrutsFormBeanScaffold",
+                "Scaffold typed form POJOs from Struts form-bean definitions",
+                true));
+        register(new RecipeDefinition(
                 "struts-to-spring-mvc",
                 "upgrd:StrutsActionToSpringController",
                 "Migrate Struts actions to Spring MVC controllers",

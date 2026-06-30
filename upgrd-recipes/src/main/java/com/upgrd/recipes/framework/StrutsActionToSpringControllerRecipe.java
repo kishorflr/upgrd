@@ -54,7 +54,7 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
             return Optional.empty();
         }
         String className = classMatcher.group(1);
-        String packageName = extractPackage(content).orElse(null);
+        String packageName = extractPackage(content).orElse("com.example");
         StrutsMappingIndex.ActionMapping mapping = index.findForClass(className, packageName)
                 .orElse(fallbackMapping(className));
 
@@ -67,7 +67,6 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
         after = ensureImport(after, "import org.springframework.stereotype.Controller;");
         after = ensureImport(after, "import org.springframework.web.bind.annotation.GetMapping;");
         after = ensureImport(after, "import org.springframework.web.bind.annotation.PostMapping;");
-        after = ensureImport(after, "import org.springframework.web.bind.annotation.RequestMapping;");
         after = ensureImport(after, "import org.springframework.web.bind.annotation.ModelAttribute;");
 
         Matcher executeMatcher = EXECUTE_BLOCK.matcher(after);
@@ -76,8 +75,10 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
             String formParam = executeMatcher.group(2);
             String body = executeMatcher.group(3).trim();
             String forward = executeMatcher.group(4);
-            String method = buildControllerMethod(mapping, formType, formParam, body, forward);
+            String viewName = mapping.resolveView(forward);
+            String method = buildControllerMethod(mapping, packageName, formType, formParam, body, viewName);
             after = executeMatcher.replaceFirst(Matcher.quoteReplacement(method));
+            after = addFormImportIfNeeded(after, mapping, packageName, formType);
         }
 
         if (!after.contains("@Controller")) {
@@ -102,17 +103,18 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
 
     private String buildControllerMethod(
             StrutsMappingIndex.ActionMapping mapping,
+            String packageName,
             String formType,
             String formParam,
             String body,
-            String forward) {
+            String viewName) {
         String path = mapping.path();
         boolean hasForm = mapping.hasForm()
                 || (formParam != null && !formParam.isBlank() && !"_".equals(formParam)
                 && !"ActionForm".equals(formType));
         if (hasForm) {
             String formName = mapping.hasForm() ? mapping.formName() : formParam;
-            String modelType = "ActionForm".equals(formType) ? "Object" : formType;
+            String modelType = resolveModelType(mapping, packageName, formType);
             String param = "@ModelAttribute(\"" + formName + "\") " + modelType + " " + formParam;
             return """
                     @PostMapping("%s")
@@ -121,7 +123,7 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
                     %s
                         return "%s";
                     }
-                    """.formatted(path, param, formName, indent(body, 8), forward);
+                    """.formatted(path, param, formName, indent(body, 8), viewName);
         }
         return """
                 @GetMapping("%s")
@@ -130,7 +132,35 @@ public final class StrutsActionToSpringControllerRecipe implements ProjectAwareR
                 %s
                     return "%s";
                 }
-                """.formatted(path, indent(body, 8), forward);
+                """.formatted(path, indent(body, 8), viewName);
+    }
+
+    private String resolveModelType(
+            StrutsMappingIndex.ActionMapping mapping,
+            String packageName,
+            String executeFormType) {
+        if (!"ActionForm".equals(executeFormType) && !executeFormType.isBlank()) {
+            return executeFormType;
+        }
+        if (mapping.formBeanType() != null && mapping.formBeanType().contains(".")) {
+            return mapping.simpleFormType();
+        }
+        return mapping.simpleFormType();
+    }
+
+    private String addFormImportIfNeeded(
+            String content,
+            StrutsMappingIndex.ActionMapping mapping,
+            String packageName,
+            String executeFormType) {
+        if (!"ActionForm".equals(executeFormType) && executeFormType.contains(".")) {
+            return ensureImport(content, "import " + executeFormType + ";");
+        }
+        String fqcn = mapping.formBeanFqcn(packageName);
+        if (fqcn.startsWith(packageName + ".")) {
+            return content;
+        }
+        return ensureImport(content, "import " + fqcn + ";");
     }
 
     private Optional<String> extractPackage(String content) {

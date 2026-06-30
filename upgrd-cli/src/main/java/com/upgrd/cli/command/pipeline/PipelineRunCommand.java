@@ -1,6 +1,7 @@
 package com.upgrd.cli.command.pipeline;
 
 import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.openrewrite.OpenRewriteRunner;
 import com.upgrd.core.pipeline.PipelineOrchestrator;
 import com.upgrd.core.pipeline.PipelineOrchestrator.PipelineRequest;
 import com.upgrd.core.ui.ReportServer;
@@ -60,6 +61,18 @@ public final class PipelineRunCommand implements Callable<Integer> {
     @Option(names = "--port", defaultValue = "8765", description = "Audit dashboard port when --serve-ui is set")
     private int port;
 
+    @Option(names = "--rewrite", defaultValue = "false",
+            description = "After apply, run OpenRewrite AST migrations")
+    private boolean rewrite;
+
+    @Option(names = "--rewrite-dry-run", defaultValue = "false",
+            description = "With --rewrite, preview OpenRewrite changes without modifying sources")
+    private boolean rewriteDryRun;
+
+    @Option(names = "--rewrite-recipe", defaultValue = OpenRewriteRunner.DEFAULT_RECIPE,
+            description = "OpenRewrite recipe when --rewrite is set")
+    private String rewriteRecipe;
+
     @Override
     public Integer call() throws Exception {
         var result = new PipelineOrchestrator().run(new PipelineRequest(
@@ -74,12 +87,18 @@ public final class PipelineRunCommand implements Callable<Integer> {
                 securityScan,
                 wildflySmoke,
                 wildflyDeploy,
-                wildflyHttp));
+                wildflyHttp,
+                rewrite,
+                rewriteDryRun,
+                rewriteRecipe));
 
         System.out.println("UpGrd pipeline complete.");
         System.out.printf("  Phases: %s%n", String.join(" → ", result.completedPhases()));
         System.out.printf("  Plan: %s%n", result.planFile().toAbsolutePath());
         System.out.printf("  Migrated: %s%n", result.applyReport().migratedRoot());
+        if (result.rewriteResult() != null) {
+            System.out.printf("  Rewrite: %s%n", result.rewriteResult().message());
+        }
         if (result.verifyResult() != null) {
             System.out.printf("  Verify: %s (exit %d)%n",
                     result.verifyResult().passed() ? "PASSED" : "FAILED",

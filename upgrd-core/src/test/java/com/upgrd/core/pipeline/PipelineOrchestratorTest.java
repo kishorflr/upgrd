@@ -1,6 +1,7 @@
 package com.upgrd.core.pipeline;
 
 import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.openrewrite.OpenRewriteRunner;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -35,7 +36,10 @@ class PipelineOrchestratorTest {
                 false,
                 false,
                 false,
-                false));
+                false,
+                false,
+                false,
+                OpenRewriteRunner.DEFAULT_RECIPE));
 
         assertTrue(result.completedPhases().containsAll(List.of("analyze", "plan", "apply")));
         assertTrue(Files.isRegularFile(output.resolve("migrated/pom.xml")));

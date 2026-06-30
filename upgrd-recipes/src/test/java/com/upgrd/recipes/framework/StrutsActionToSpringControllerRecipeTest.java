@@ -96,5 +96,7 @@ class StrutsActionToSpringControllerRecipeTest {
         String after = change.get().after();
         assertTrue(after.contains("@PostMapping(\"/user\")"));
         assertTrue(after.contains("@ModelAttribute(\"userForm\")"));
+        assertTrue(after.contains("UserForm"));
+        assertTrue(after.contains("return \"pages/success\""));
     }
 }

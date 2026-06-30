@@ -186,6 +186,14 @@ public final class UpgradePlanner {
 
         if (fp.frameworks().stream().anyMatch(f -> f.startsWith("STRUTS"))) {
             steps.add(step(
+                    "struts-form-beans",
+                    "framework",
+                    "Scaffold typed form POJOs from Struts form-bean definitions",
+                    "upgrd:StrutsFormBeanScaffold",
+                    "Spring MVC @ModelAttribute binding requires typed form classes; UpGrd generates POJOs from struts-config.xml and validation.xml",
+                    fp.evidence().stream().filter(e -> e.contains("struts-config")).limit(5).toList(),
+                    StepMode.AUTOMATED));
+            steps.add(step(
                     "struts-to-spring-mvc",
                     "framework",
                     "Migrate Struts actions to Spring MVC controllers",

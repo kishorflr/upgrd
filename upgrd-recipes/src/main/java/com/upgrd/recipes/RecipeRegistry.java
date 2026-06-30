@@ -5,6 +5,7 @@ import com.upgrd.recipes.collections.ReplaceRawCollectionsRecipe;
 import com.upgrd.recipes.framework.Spring4To6Recipe;
 import com.upgrd.recipes.framework.StrutsActionToSpringControllerRecipe;
 import com.upgrd.recipes.framework.StrutsConfigToSpringRecipe;
+import com.upgrd.recipes.framework.StrutsFormBeanScaffoldRecipe;
 import com.upgrd.recipes.framework.StrutsJspToThymeleafRecipe;
 import com.upgrd.recipes.framework.StrutsViewValidationHintsRecipe;
 import com.upgrd.recipes.language.UpgradeJavaRecipe;
@@ -24,6 +25,7 @@ public final class RecipeRegistry {
 
     public RecipeRegistry() {
         register(new Log4j1ToSlf4jRecipe());
+        register(new StrutsFormBeanScaffoldRecipe());
         register(new StrutsActionToSpringControllerRecipe());
         register(new StrutsConfigToSpringRecipe());
         register(new StrutsViewValidationHintsRecipe());
