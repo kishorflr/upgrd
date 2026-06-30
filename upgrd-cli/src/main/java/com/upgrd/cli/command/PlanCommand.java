@@ -3,9 +3,11 @@ package com.upgrd.cli.command;
 import com.upgrd.core.discovery.ProjectDiscoveryService;
 import com.upgrd.core.model.ProjectDiscovery;
 import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.model.SecurityReport;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.plan.UpgradePlanner;
 import com.upgrd.core.report.ReportWriter;
+import com.upgrd.core.security.SecurityAnalyzer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -50,11 +52,13 @@ public final class PlanCommand implements Runnable {
         public Integer call() throws Exception {
             ProjectProfile profileOverride = parseProfile(profile);
             ProjectDiscovery discovery = new ProjectDiscoveryService().discover(source, profileOverride);
+            SecurityReport security = new SecurityAnalyzer().analyze(source, discovery);
             UpgradePlanner planner = new UpgradePlanner();
-            UpgradePlan plan = planner.plan(discovery, target, server, dryRun);
+            UpgradePlan plan = planner.plan(discovery, target, server, dryRun, security);
             Path planFile = planner.writePlan(plan, output);
 
             ReportWriter reportWriter = new ReportWriter();
+            reportWriter.writeSecurityReport(security, output);
             reportWriter.writeChangeLedger(reportWriter.previewFromPlan(plan, source), output);
 
             System.out.printf("UpGrd upgrade plan (%s).%n", dryRun ? "dry-run" : "apply-ready");
@@ -65,6 +69,7 @@ public final class PlanCommand implements Runnable {
                     System.out.printf("    - [%s/%s] %s%n",
                             step.category(), step.mode(), step.description()));
             System.out.printf("  Plan: %s%n", planFile.toAbsolutePath());
+            System.out.printf("  Security findings: %d (auto-fixable steps added to plan)%n", security.openCount());
             System.out.printf("  Change ledger preview: %s/change-ledger.json%n", output.toAbsolutePath());
             return 0;
         }

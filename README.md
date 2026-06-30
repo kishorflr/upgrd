@@ -60,9 +60,10 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 
 | Command | Status |
 |---------|--------|
-| `analyze` | Profile detection, technology fingerprint, design advisory |
-| `plan upgrade --dry-run` | Profile-aware steps with per-step reasoning + change ledger preview |
-| `apply` | Source copy to Maven layout, Log4j1→SLF4J, change ledger with diffs |
+| `analyze` | Profile detection, fingerprint, design advisory, security scan, `app-documentation.json` + `AGENTS.md` |
+| `plan upgrade --dry-run` | Profile-aware steps + security remediation steps from findings |
+| `apply` | Source migration, security fixes, JUnit 5 smoke tests, automation metadata in migrated/ |
+| `verify` | Runs `mvn test` in migrated application |
 | `run --serve-ui` | Local audit dashboard on localhost (reads JSON reports only) |
 | `upgrd-recipes` | FileRecipe catalog (OpenRewrite adapter planned) |
 | Java 21 rewrite + Struts/Spring recipes | Planned |
@@ -77,6 +78,22 @@ Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, cha
 | `legacy-backend` | JDK 7 flat/Ant, minimal frameworks | Java upgrade automated; design changes **advisory only** |
 
 Profiles are auto-detected or set with `--profile legacy-web` / `--profile legacy-backend`.
+
+## Agent documentation & security
+
+During **analyze**, UpGrd writes:
+
+- `app-documentation.json` — structured knowledge base (stack, inventory, hot paths, agent guide)
+- `AGENTS.md` — Markdown summary for human and AI agent onboarding
+- `security-report.json` — CVE/CWE findings with remediation status
+
+During **apply**, security fixes run automatically where safe (log4j, weak crypto, hardcoded secrets). Documentation and security reports are updated with post-upgrade status.
+
+**Migrated application** (under `migrated/`) includes:
+
+- `AGENTS.md` and `upgrd-analysis.json` — embedded guide for automation/AI tools
+- `app-web/src/test/java/com/upgrd/smoke/` — JUnit 5 smoke tests (hot paths from logs prioritized)
+- Run tests: `mvn -f migrated/pom.xml test` or `upgrd verify --output ./upgrd-out`
 
 ## Security
 

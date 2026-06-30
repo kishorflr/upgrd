@@ -27,7 +27,7 @@ public final class RecipeCatalog {
                 "struts-to-spring-mvc",
                 "upgrd:StrutsActionToSpringController",
                 "Migrate Struts actions to Spring MVC controllers",
-                false));
+                true));
         register(new RecipeDefinition(
                 "spring-4-to-6",
                 "org.openrewrite.java.spring.framework.UpgradeSpringFramework_6_0",
@@ -54,10 +54,20 @@ public final class RecipeCatalog {
                 "Suggest abstractions for tightly coupled classes (advisory)",
                 false));
         register(new RecipeDefinition(
+                "remediate-weak-crypto",
+                "upgrd:RemediateWeakHash",
+                "Replace weak hash algorithms with SHA-256",
+                true));
+        register(new RecipeDefinition(
+                "remediate-secrets",
+                "upgrd:ExternalizeSecrets",
+                "Externalize hardcoded credentials to environment variables",
+                true));
+        register(new RecipeDefinition(
                 "portable-jakarta",
-                "org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta",
+                "upgrd:JavaxToJakarta",
                 "Replace javax.* with jakarta.*",
-                false));
+                true));
         register(new RecipeDefinition(
                 "weblogic-adapters",
                 "upgrd:WebLogic14cDescriptors",
@@ -69,15 +79,20 @@ public final class RecipeCatalog {
                 "Generate deploy/wildfly profile for local verification",
                 false));
         register(new RecipeDefinition(
-                "security-scan",
+                "security-verify",
                 "upgrd:SecurityVerify",
                 "Run OWASP Dependency-Check and SpotBugs after migration",
                 false));
         register(new RecipeDefinition(
                 "test-scaffold",
                 "upgrd:GenerateSmokeTests",
-                "Add JUnit 5 smoke tests for hot paths discovered from logs",
-                false));
+                "Add JUnit 5 smoke tests inside migrated app",
+                true));
+        register(new RecipeDefinition(
+                "automation-ready",
+                "upgrd:AutomationReady",
+                "Embed AI/automation-friendly metadata in migrated application",
+                true));
     }
 
     public Optional<RecipeDefinition> findByStepId(String stepId) {

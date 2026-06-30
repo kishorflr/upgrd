@@ -4,14 +4,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
+import com.upgrd.core.documentation.ApplicationDocumenter;
+import com.upgrd.core.documentation.DocumentationWriter;
 import com.upgrd.core.model.ApplyReport;
 import com.upgrd.core.model.ApplyStepResult;
 import com.upgrd.core.model.ChangeLedger;
 import com.upgrd.core.model.ChangeRecord;
+import com.upgrd.core.model.SecurityReport;
 import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
+import com.upgrd.core.model.UsageReport;
 import com.upgrd.core.report.ReportWriter;
+import com.upgrd.core.security.SecurityReportMerger;
 import com.upgrd.recipes.FileRecipe;
 import com.upgrd.recipes.RecipeCatalog;
 import com.upgrd.recipes.RecipeDefinition;
@@ -23,7 +28,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class ApplyEngine {
@@ -32,8 +39,13 @@ public final class ApplyEngine {
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
     private final ReportWriter reportWriter = new ReportWriter();
+    private final ApplicationDocumenter applicationDocumenter = new ApplicationDocumenter();
+    private final DocumentationWriter documentationWriter = new DocumentationWriter();
+    private final SecurityReportMerger securityReportMerger = new SecurityReportMerger();
     private final SourceMigrator sourceMigrator = new SourceMigrator();
     private final MavenScaffolder mavenScaffolder = new MavenScaffolder();
+    private final AutomationReadinessScaffolder automationScaffolder = new AutomationReadinessScaffolder();
+    private final SmokeTestGenerator smokeTestGenerator = new SmokeTestGenerator();
     private final RecipeRegistry recipeRegistry = new RecipeRegistry();
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
     private final RecipeCatalog recipeCatalog = new RecipeCatalog();
@@ -53,7 +65,9 @@ public final class ApplyEngine {
 
         List<ChangeRecord> allChanges = new ArrayList<>();
         List<ApplyStepResult> results = new ArrayList<>();
+        Set<String> appliedRecipeIds = new HashSet<>();
         AtomicInteger changeCounter = new AtomicInteger();
+        List<String> testEntryPoints = new ArrayList<>();
 
         for (UpgradeStep step : plan.steps()) {
             if (step.mode() == StepMode.ADVISORY) {
@@ -66,8 +80,12 @@ public final class ApplyEngine {
             }
 
             ApplyStepResult stepResult = executeStep(
-                    step, plan, sourceRoot, migratedRoot, appWebRoot, allChanges, changeCounter);
+                    step, plan, sourceRoot, outputDir, migratedRoot, appWebRoot,
+                    allChanges, changeCounter, testEntryPoints);
             results.add(stepResult);
+            if ("APPLIED".equals(stepResult.status()) && step.recipe() != null) {
+                appliedRecipeIds.add(step.recipe());
+            }
         }
 
         ChangeLedger ledger = new ChangeLedger(
@@ -84,24 +102,113 @@ public final class ApplyEngine {
                 sourceRoot.toAbsolutePath().normalize().toString(),
                 migratedRoot.toAbsolutePath().normalize().toString(),
                 results);
-
         writeReport(report, outputDir);
+
+        SecurityReport securityBefore = reportWriter.readSecurityReport(outputDir);
+        if (securityBefore != null) {
+            SecurityReport securityAfter = securityReportMerger.markRemediated(
+                    securityBefore, appliedRecipeIds);
+            reportWriter.writeSecurityReport(securityAfter, outputDir);
+            updateDocumentation(outputDir, report, ledger, securityAfter);
+        }
+
         return report;
+    }
+
+    private void updateDocumentation(
+            Path outputDir,
+            ApplyReport applyReport,
+            ChangeLedger ledger,
+            SecurityReport securityAfter) throws IOException {
+        var existing = reportWriter.readDocumentation(outputDir);
+        if (existing == null) {
+            return;
+        }
+        var updated = applicationDocumenter.appendApplyPhase(existing, applyReport, ledger, securityAfter);
+        documentationWriter.write(updated, outputDir);
     }
 
     private ApplyStepResult executeStep(
             UpgradeStep step,
             UpgradePlan plan,
             Path sourceRoot,
+            Path outputDir,
             Path migratedRoot,
             Path appWebRoot,
             List<ChangeRecord> allChanges,
-            AtomicInteger changeCounter) throws IOException {
+            AtomicInteger changeCounter,
+            List<String> testEntryPoints) throws IOException {
         return switch (step.id()) {
             case "convert-maven" -> runConvertMaven(step, plan, sourceRoot, migratedRoot, appWebRoot,
                     allChanges, changeCounter);
-            default -> runRecipe(step, appWebRoot.resolve("src/main/java"), allChanges, changeCounter);
+            case "test-scaffold" -> runTestScaffold(step, outputDir, appWebRoot, allChanges, changeCounter, testEntryPoints);
+            case "automation-ready" -> runAutomationReady(step, plan, migratedRoot, testEntryPoints, allChanges, changeCounter);
+            default -> runRecipe(step, appWebRoot, allChanges, changeCounter);
         };
+    }
+
+    private ApplyStepResult runTestScaffold(
+            UpgradeStep step,
+            Path outputDir,
+            Path appWebRoot,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter,
+            List<String> testEntryPoints) throws IOException {
+        if (!Files.isDirectory(appWebRoot)) {
+            return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
+                    "No migrated app-web — run convert-maven first");
+        }
+        UsageReport usage = reportWriter.readUsageReport(outputDir);
+        SmokeTestGenerator.GenerationResult result = smokeTestGenerator.generate(appWebRoot, usage);
+        testEntryPoints.addAll(result.entryPoints());
+
+        for (String file : result.generatedFiles()) {
+            allChanges.add(new ChangeRecord(
+                    step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                    step.recipe(),
+                    step.category(),
+                    file,
+                    List.of(),
+                    "",
+                    "(generated smoke test)",
+                    step.reason(),
+                    result.entryPoints(),
+                    "LOW",
+                    true,
+                    AnalyzeEngine.VERSION,
+                    true));
+        }
+
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Generated " + result.generatedFiles().size() + " JUnit 5 smoke test(s) in app-web/src/test/java");
+    }
+
+    private ApplyStepResult runAutomationReady(
+            UpgradeStep step,
+            UpgradePlan plan,
+            Path migratedRoot,
+            List<String> testEntryPoints,
+            List<ChangeRecord> allChanges,
+            AtomicInteger changeCounter) throws IOException {
+        List<String> artifacts = automationScaffolder.scaffold(migratedRoot, plan, testEntryPoints);
+
+        allChanges.add(new ChangeRecord(
+                step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
+                step.recipe(),
+                step.category(),
+                "migrated/",
+                List.of(),
+                "",
+                "Automation metadata: " + String.join(", ", artifacts),
+                step.reason(),
+                artifacts,
+                "LOW",
+                true,
+                AnalyzeEngine.VERSION,
+                true));
+
+        return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
+                "Embedded AGENTS.md, upgrd-analysis.json, and test layout for automation/AI analysis");
     }
 
     private ApplyStepResult runConvertMaven(
@@ -122,7 +229,7 @@ public final class ApplyEngine {
                 "migrated/",
                 List.of(),
                 "(legacy layout)",
-                "Maven multi-module layout with app-web/",
+                "Maven multi-module layout with app-web/ and JUnit 5 test deps",
                 step.reason(),
                 List.copyOf(copied.stream().limit(10).toList()),
                 "LOW",
@@ -131,18 +238,22 @@ public final class ApplyEngine {
                 true));
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED",
-                "Copied " + copied.size() + " file(s) and generated Maven POMs");
+                "Copied " + copied.size() + " file(s) and generated Maven POMs with test infrastructure");
     }
 
     private ApplyStepResult runRecipe(
             UpgradeStep step,
-            Path javaRoot,
+            Path appWebRoot,
             List<ChangeRecord> allChanges,
             AtomicInteger changeCounter) throws IOException {
         RecipeDefinition definition = recipeCatalog.findByStepId(step.id()).orElse(null);
         if (definition == null || !definition.implemented()) {
-            return new ApplyStepResult(step.id(), step.recipe(), "PENDING",
-                    "Recipe execution not yet implemented");
+            if ("security".equals(step.category()) && recipeRegistry.resolve(step.recipe()).isPresent()) {
+                definition = new RecipeDefinition(step.id(), step.recipe(), step.description(), true);
+            } else {
+                return new ApplyStepResult(step.id(), step.recipe(), "PENDING",
+                        "Recipe execution not yet implemented");
+            }
         }
 
         var recipe = recipeRegistry.resolve(step.recipe());
@@ -151,12 +262,12 @@ public final class ApplyEngine {
                     "No executable recipe registered for " + step.recipe());
         }
 
-        if (!Files.isDirectory(javaRoot)) {
+        if (!Files.isDirectory(appWebRoot)) {
             return new ApplyStepResult(step.id(), step.recipe(), "SKIPPED",
-                    "No Java sources yet — run convert-maven first or ensure src/main/java exists");
+                    "No migrated sources yet — run convert-maven first");
         }
 
-        RecipeExecutor.RecipeRunResult runResult = recipeExecutor.run(recipe.get(), javaRoot);
+        RecipeExecutor.RecipeRunResult runResult = recipeExecutor.runOnProject(recipe.get(), appWebRoot);
         for (FileRecipe.FileChange change : runResult.changes()) {
             allChanges.add(new ChangeRecord(
                     step.id() + "-" + String.format("%04d", changeCounter.incrementAndGet()),
@@ -168,7 +279,7 @@ public final class ApplyEngine {
                     truncate(change.after()),
                     step.reason(),
                     step.evidence(),
-                    "LOW",
+                    step.category().equals("security") ? "MEDIUM" : "LOW",
                     true,
                     AnalyzeEngine.VERSION,
                     true));

@@ -6,23 +6,35 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * Runs {@link FileRecipe} transforms against Java sources on disk.
+ * Runs {@link FileRecipe} transforms against project sources on disk.
  */
 public final class RecipeExecutor {
 
+    private static final Set<String> JAVA_EXT = Set.of(".java");
+    private static final Set<String> CONFIG_EXT = Set.of(".java", ".properties");
+
     public RecipeRunResult run(FileRecipe recipe, Path sourceRoot) throws IOException {
-        List<Path> javaFiles = listJavaFiles(sourceRoot);
-        if (javaFiles.isEmpty()) {
-            return new RecipeRunResult(List.of(), 0, "No Java sources found under " + sourceRoot);
+        return run(recipe, sourceRoot, JAVA_EXT);
+    }
+
+    public RecipeRunResult runOnProject(FileRecipe recipe, Path projectRoot) throws IOException {
+        return run(recipe, projectRoot, CONFIG_EXT);
+    }
+
+    private RecipeRunResult run(FileRecipe recipe, Path root, Set<String> extensions) throws IOException {
+        List<Path> files = listFiles(root, extensions);
+        if (files.isEmpty()) {
+            return new RecipeRunResult(List.of(), 0, "No matching sources under " + root);
         }
 
         List<FileRecipe.FileChange> changes = new ArrayList<>();
-        for (Path file : javaFiles) {
+        for (Path file : files) {
             String before = Files.readString(file, StandardCharsets.UTF_8);
-            String relative = sourceRoot.relativize(file).toString().replace('\\', '/');
+            String relative = root.relativize(file).toString().replace('\\', '/');
             recipe.transform(relative, before).ifPresent(change -> {
                 try {
                     Files.writeString(file, change.after(), StandardCharsets.UTF_8);
@@ -37,13 +49,13 @@ public final class RecipeExecutor {
                 "Applied " + recipe.displayName() + " to " + changes.size() + " file(s)");
     }
 
-    private List<Path> listJavaFiles(Path root) throws IOException {
+    private List<Path> listFiles(Path root, Set<String> extensions) throws IOException {
         if (!Files.isDirectory(root)) {
             return List.of();
         }
         try (Stream<Path> walk = Files.walk(root)) {
             return walk.filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".java"))
+                    .filter(p -> extensions.stream().anyMatch(ext -> p.toString().endsWith(ext)))
                     .sorted()
                     .toList();
         }

@@ -1,0 +1,68 @@
+package com.upgrd.recipes.framework;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class StrutsActionToSpringControllerRecipeTest {
+
+    @Test
+    void migratesStrutsAction() {
+        String before = """
+                package com.example;
+
+                import org.apache.struts.action.Action;
+                import org.apache.struts.action.ActionForm;
+                import org.apache.struts.action.ActionForward;
+                import org.apache.struts.action.ActionMapping;
+                import javax.servlet.http.HttpServletRequest;
+                import javax.servlet.http.HttpServletResponse;
+
+                public class UserAction extends Action {
+                    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                            HttpServletRequest request, HttpServletResponse response) throws Exception {
+                        return mapping.findForward("success");
+                    }
+                }
+                """;
+
+        var change = new StrutsActionToSpringControllerRecipe().transform("UserAction.java", before);
+        assertTrue(change.isPresent());
+        String after = change.get().after();
+        assertTrue(after.contains("@Controller"));
+        assertTrue(after.contains("@GetMapping"));
+        assertTrue(after.contains("org.springframework"));
+        assertTrue(!after.contains("org.apache.struts"));
+        assertTrue(!after.contains("extends Action"));
+        assertTrue(after.indexOf("package com.example;") < after.indexOf("import org.springframework"));
+    }
+
+    @Test
+    void migratesExecuteWithBodyStatements() {
+        String before = """
+                package com.example;
+
+                import org.apache.struts.action.Action;
+                import org.apache.struts.action.ActionForm;
+                import org.apache.struts.action.ActionForward;
+                import org.apache.struts.action.ActionMapping;
+                import javax.servlet.http.HttpServletRequest;
+                import javax.servlet.http.HttpServletResponse;
+
+                public class UserAction extends Action {
+                    public ActionForward execute(ActionMapping mapping, ActionForm form,
+                            HttpServletRequest request, HttpServletResponse response) throws Exception {
+                        log.info("handling user request");
+                        return mapping.findForward("success");
+                    }
+                }
+                """;
+
+        var change = new StrutsActionToSpringControllerRecipe().transform("UserAction.java", before);
+        assertTrue(change.isPresent());
+        String after = change.get().after();
+        assertTrue(after.contains("@GetMapping"));
+        assertTrue(!after.contains("ActionForward"));
+        assertTrue(!after.contains("ActionMapping"));
+    }
+}

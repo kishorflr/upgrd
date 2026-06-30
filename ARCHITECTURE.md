@@ -6,6 +6,9 @@
 2. **Auditable output** — Same inputs produce the same plan. Every change links to a rule or recipe ID, with reason, evidence, and before/after diff when applied.
 3. **Dual deployment** — Upgraded application code is portable Jakarta EE. Local dev/CI targets **WildFly**; production targets **WebLogic 14c**. Server differences live in `deploy/wildfly` and `deploy/weblogic` only.
 4. **Mechanical vs advisory** — Framework/API migrations (log4j, javax→jakarta) can be auto-applied. Structural redesign (extract service layer, break god classes) is proposed with reasoning and requires explicit approval.
+5. **Living documentation** — UpGrd generates structured, agent-readable documentation during analyze and apply — not as an afterthought.
+6. **Security by default** — Known vulnerabilities are detected during analyze and remediated during apply where safe; remaining findings are tracked in `security-report.json`.
+7. **Automation-ready output** — Migrated applications use standard Maven layout, embedded `upgrd-analysis.json`, `AGENTS.md`, and JUnit 5 smoke tests so automation tools and AI agents can analyze them without re-discovery.
 
 ## Pipeline
 
@@ -16,9 +19,9 @@ Discover → Analyze → Plan (dry-run) → Apply → Verify → Report
 | Phase | Purpose |
 |-------|---------|
 | Discover | Detect build system, Java version, technology fingerprint, project profile |
-| Analyze | WAR/source sync, log usage mapping, design advisory, risk signals |
-| Plan | Profile-aware OpenRewrite recipe list with per-step reasoning |
-| Apply | Rewrite source, generate POMs, server overlays, change ledger |
+| Analyze | WAR/source sync, log usage mapping, design advisory, security scan, agent documentation |
+| Plan | Profile-aware recipe list with per-step reasoning + security remediation steps |
+| Apply | Rewrite source, generate POMs, fix security issues, update change ledger and documentation |
 | Verify | `mvn verify`, WildFly profile, OWASP Dependency-Check, SpotBugs |
 | Report | JSON reports + local HTML dashboard (localhost only) |
 
@@ -83,21 +86,82 @@ upgrd/
 
 ```
 migrated/
+├── AGENTS.md                    # agent onboarding (embedded in upgraded app)
+├── upgrd-analysis.json          # machine-readable layout + entry points
+├── .upgrd/manifest.json
 ├── pom.xml
-├── app-web/                 # portable WAR sources
+├── app-web/
+│   ├── src/main/java/...
+│   ├── src/test/java/com/upgrd/smoke/   # JUnit 5 smoke tests
+│   └── pom.xml                  # JUnit 5 + Surefire
 ├── deploy/
-│   ├── wildfly/             # local: Docker, datasource CLI, jboss-web.xml
-│   └── weblogic/            # prod: weblogic.xml, jdbc bindings
-└── upgrd-out/
+│   ├── wildfly/
+│   └── weblogic/
+└── upgrd-out/                   # audit reports (sibling to migrated/)
     ├── analysis-report.json
     ├── upgrade-plan.json
     ├── change-ledger.json
     ├── design-advisory.json
+    ├── app-documentation.json
     ├── apply-report.json
     ├── sync-report.json
     ├── usage-report.json
     └── security-report.json
 ```
+
+Note: `AGENTS.md` exists in both `upgrd-out/` (audit context) and `migrated/` (embedded in the upgraded app).
+
+## Agent documentation (living knowledge base)
+
+UpGrd documents the application **during** analyze and apply so future agents (and humans) can onboard without re-scanning from scratch.
+
+`app-documentation.json` sections include:
+
+| Section | Phase | Purpose |
+|---------|-------|---------|
+| Application Overview | analyze | Profile, build system, Java version |
+| Technology Stack | analyze | Frameworks, logging, servlet API |
+| Code Inventory | analyze | Class counts, source roots, sync status |
+| Runtime Hot Paths | analyze | Log-discovered critical paths |
+| Security Baseline | analyze | Findings at analysis time |
+| Guide for Future Agents | analyze | How to read reports and respect advisory steps |
+| Upgrade Execution | apply | Steps applied and status |
+| Change Summary | apply | Link to change ledger |
+| Security After Upgrade | apply | Remediated vs open findings |
+| Post-Upgrade Agent Notes | apply | Migrated layout pointers |
+
+`AGENTS.md` mirrors the JSON in Markdown for tools that prefer plain text.
+
+## Security remediation during upgrade
+
+Security is not deferred to a separate verify-only phase. UpGrd:
+
+1. **Detects** during `analyze` and `plan` — classpath JARs, log4j 1.x, weak crypto, hardcoded secrets, SQL concatenation, unsafe deserialization
+2. **Plans** auto-fix steps for safe, mechanical remediations (linked to CVE/CWE where applicable)
+3. **Applies** fixes during `apply` via `FileRecipe` transforms — recorded in `change-ledger.json`
+4. **Tracks** remediated vs open findings in `security-report.json`
+
+| Finding | Auto-fix recipe | Notes |
+|---------|-----------------|-------|
+| Log4j 1.x | `upgrd:Log4j1ToSlf4j` | CVE-2019-17571 |
+| Weak hash (MD5/SHA-1) | `upgrd:RemediateWeakHash` | Replaced with SHA-256 |
+| Hardcoded secrets | `upgrd:ExternalizeSecrets` | `${ENV_VAR}` placeholders |
+| SQL concatenation | — | Reported; manual PreparedStatement refactor |
+| Unsafe deserialization | — | Reported; requires design review |
+
+## Automation-ready migrated applications
+
+Upgraded code lives in `migrated/` with structures that automation tools and AI agents expect:
+
+| Artifact | Purpose |
+|----------|---------|
+| Standard Maven layout | `src/main/java`, `src/test/java`, `pom.xml` with Surefire |
+| `upgrd-analysis.json` | Machine-readable layout map, entry points, test command |
+| `migrated/AGENTS.md` | Onboarding guide embedded in the application tree |
+| `com.upgrd.smoke.*` tests | JUnit 5 smoke tests for log hot paths or main classes |
+| `upgrd verify` | Runs `mvn test` against the migrated project |
+
+Apply steps: `test-scaffold` (generate tests) → `automation-ready` (embed metadata).
 
 ## Local audit UI
 

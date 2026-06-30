@@ -154,6 +154,46 @@ function renderUsage(analysis) {
   }
 }
 
+function renderSecurity(security) {
+  const el_ = document.getElementById('security-report');
+  el_.innerHTML = '';
+  if (!security) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> or <code>upgrd plan upgrade</code></p>';
+    return;
+  }
+  const summary = el('p', null, 'Remediated: ' + security.remediatedCount +
+    ' | Open: ' + security.openCount);
+  el_.appendChild(summary);
+  (security.findings || []).forEach(f => {
+    const div = el('div', 'advisory');
+    const h = el('h3');
+    h.textContent = f.description;
+    h.prepend(badge(f.remediated ? 'ok' : f.severity.toLowerCase(),
+      f.remediated ? 'automated' : 'risk-' + f.severity.toLowerCase()));
+    div.appendChild(h);
+    div.appendChild(el('p', 'muted', (f.cveId || f.category) + ' | ' + f.file));
+    div.appendChild(el('div', 'reason', f.remediation || ''));
+    el_.appendChild(div);
+  });
+}
+
+function renderDocumentation(doc) {
+  const el_ = document.getElementById('app-documentation');
+  el_.innerHTML = '';
+  if (!doc) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> to generate app-documentation.json and AGENTS.md</p>';
+    return;
+  }
+  el_.appendChild(el('p', null, doc.summary));
+  (doc.sections || []).forEach(section => {
+    const div = el('div', 'step');
+    div.appendChild(el('h3', null, section.title));
+    div.appendChild(el('p', 'muted', section.phase + ' | ' + section.category));
+    div.appendChild(el('pre', 'reason', section.content));
+    el_.appendChild(div);
+  });
+}
+
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
@@ -164,17 +204,21 @@ document.querySelectorAll('.tab').forEach(btn => {
 });
 
 async function init() {
-  const [analysis, plan, ledger, design] = await Promise.all([
+  const [analysis, plan, ledger, design, security, documentation] = await Promise.all([
     fetchReport('analysis-report.json'),
     fetchReport('upgrade-plan.json'),
     fetchReport('change-ledger.json'),
-    fetchReport('design-advisory.json')
+    fetchReport('design-advisory.json'),
+    fetchReport('security-report.json'),
+    fetchReport('app-documentation.json')
   ]);
   renderDashboard(analysis);
   renderPlan(plan);
   renderChanges(ledger);
   renderDesign(design);
   renderUsage(analysis);
+  renderSecurity(security);
+  renderDocumentation(documentation);
 }
 
 init();

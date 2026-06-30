@@ -49,6 +49,8 @@ public final class AnalyzeCommand implements Callable<Integer> {
                 fp.logging());
         System.out.printf("  Risk signals: %d | Design advisories: %d%n",
                 fp.riskSignals().size(), report.designAdvisory().advisories().size());
+        System.out.printf("  Documentation: %s/app-documentation.json%n", output.toAbsolutePath());
+        System.out.printf("  Agent guide: %s/AGENTS.md%n", output.toAbsolutePath());
         System.out.printf("  WAR classes: %d | Source classes: %d%n",
                 report.sync().warClassCount(), report.sync().sourceClassCount());
         System.out.printf("  Log hits: %d | Unused WAR classes: %d%n",

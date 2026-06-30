@@ -10,6 +10,7 @@ import com.upgrd.core.model.TechnologyFingerprint;
 import com.upgrd.core.model.UpgradePlan;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +23,7 @@ class UpgradePlannerTest {
     @Test
     void legacyWebPlanIncludesFrameworkSteps() {
         ProjectDiscovery discovery = legacyWebDiscovery();
-        UpgradePlan plan = planner.plan(discovery, "java21", "weblogic-14c", true);
+        UpgradePlan plan = planner.plan(discovery, "java21", "weblogic-14c", true, emptySecurity());
 
         assertEquals(ProjectProfile.LEGACY_WEB, plan.profile());
         assertTrue(plan.steps().stream().anyMatch(s -> s.id().equals("migrate-log4j1")));
@@ -33,7 +34,7 @@ class UpgradePlannerTest {
     @Test
     void legacyBackendPlanIncludesAdvisorySteps() {
         ProjectDiscovery discovery = legacyBackendDiscovery();
-        UpgradePlan plan = planner.plan(discovery, "java21", "weblogic-14c", true);
+        UpgradePlan plan = planner.plan(discovery, "java21", "weblogic-14c", true, emptySecurity());
 
         assertEquals(ProjectProfile.LEGACY_BACKEND, plan.profile());
         assertTrue(plan.steps().stream().anyMatch(s -> s.id().equals("introduce-layering")
@@ -74,5 +75,10 @@ class UpgradePlannerTest {
                         List.of("god-class", "raw-collections"),
                         List.of("LegacyService.java: 520 lines")),
                 ProjectProfile.LEGACY_BACKEND);
+    }
+
+    private com.upgrd.core.model.SecurityReport emptySecurity() {
+        return new com.upgrd.core.model.SecurityReport(
+                "test", Instant.now(), ProjectProfile.UNKNOWN, List.of(), 0, 0);
     }
 }

@@ -10,6 +10,8 @@ import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.model.ServletApi;
 import com.upgrd.core.model.StepMode;
 import com.upgrd.core.model.TechnologyFingerprint;
+import com.upgrd.core.model.SecurityFinding;
+import com.upgrd.core.model.SecurityReport;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
 
@@ -27,7 +29,8 @@ public final class UpgradePlanner {
             ProjectDiscovery discovery,
             String targetJava,
             String productionServer,
-            boolean dryRun) {
+            boolean dryRun,
+            SecurityReport security) {
         List<UpgradeStep> steps = new ArrayList<>();
         ProjectProfile profile = discovery.profile();
         TechnologyFingerprint fp = discovery.fingerprint();
@@ -66,12 +69,14 @@ public final class UpgradePlanner {
             addLegacyBackendSteps(steps, fp);
         }
 
+        addSecurityRemediationSteps(steps, security);
+
         if (discovery.containsWeblogicApi() || fp.servletApi() == ServletApi.JAVAX) {
             steps.add(step(
                     "portable-jakarta",
                     "api",
                     "Replace javax.* with jakarta.* and isolate WebLogic-specific APIs",
-                    "org.openrewrite.java.migrate.jakarta.JavaxMigrationToJakarta",
+                    "upgrd:JavaxToJakarta",
                     "Jakarta EE namespace is required for modern servlet containers and Spring 6+",
                     fp.evidence().stream().filter(e -> e.contains("javax")).limit(5).toList(),
                     StepMode.AUTOMATED));
@@ -95,20 +100,29 @@ public final class UpgradePlanner {
                 StepMode.AUTOMATED));
 
         steps.add(step(
-                "security-scan",
+                "security-verify",
                 "security",
                 "Run OWASP Dependency-Check and SpotBugs after migration",
                 "upgrd:SecurityVerify",
-                "Legacy dependencies (log4j 1.x, old Spring) often carry known CVEs that must be surfaced for audit",
+                "Post-upgrade verification confirms no new CVEs were introduced",
                 fp.evidence().stream().filter(e -> e.startsWith("classpath:")).limit(5).toList(),
                 StepMode.AUTOMATED));
 
         steps.add(step(
                 "test-scaffold",
                 "testing",
-                "Add JUnit 5 smoke tests for hot paths discovered from logs",
+                "Add JUnit 5 smoke tests inside migrated app for hot paths",
                 "upgrd:GenerateSmokeTests",
-                "Smoke tests on log-discovered hot paths provide a safety net during mechanical upgrades",
+                "Automated tests in app-web/src/test/java give agents and CI a baseline; hot paths from logs are prioritized",
+                List.of("profile=" + profile),
+                StepMode.AUTOMATED));
+
+        steps.add(step(
+                "automation-ready",
+                "tooling",
+                "Embed AI/automation-friendly metadata in migrated application",
+                "upgrd:AutomationReady",
+                "Standard Maven test layout, upgrd-analysis.json, and AGENTS.md in migrated/ help future tools analyze the upgraded codebase",
                 List.of("profile=" + profile),
                 StepMode.AUTOMATED));
 
@@ -155,6 +169,38 @@ public final class UpgradePlanner {
                     fp.evidence().stream().filter(e -> e.contains("spring")).limit(5).toList(),
                     StepMode.AUTOMATED));
         }
+    }
+
+    private void addSecurityRemediationSteps(List<UpgradeStep> steps, SecurityReport security) {
+        if (security == null || security.findings().isEmpty()) {
+            return;
+        }
+        for (SecurityFinding finding : security.findings()) {
+            if (!finding.autoFixable() || finding.recipeId() == null) {
+                continue;
+            }
+            String stepId = stepIdForRecipe(finding.recipeId());
+            if (steps.stream().anyMatch(s -> s.id().equals(stepId))) {
+                continue;
+            }
+            steps.add(step(
+                    stepId,
+                    "security",
+                    "Remediate: " + finding.description(),
+                    finding.recipeId(),
+                    finding.remediation() + (finding.cveId() != null ? " (" + finding.cveId() + ")" : ""),
+                    List.of(finding.file()),
+                    StepMode.AUTOMATED));
+        }
+    }
+
+    private String stepIdForRecipe(String recipeId) {
+        return switch (recipeId) {
+            case "upgrd:Log4j1ToSlf4j" -> "migrate-log4j1";
+            case "upgrd:RemediateWeakHash" -> "remediate-weak-crypto";
+            case "upgrd:ExternalizeSecrets" -> "remediate-secrets";
+            default -> "remediate-" + recipeId.replace("upgrd:", "").toLowerCase();
+        };
     }
 
     private void addLegacyBackendSteps(List<UpgradeStep> steps, TechnologyFingerprint fp) {

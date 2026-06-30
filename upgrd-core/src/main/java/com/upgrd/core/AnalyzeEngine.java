@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.design.DesignAdvisoryAnalyzer;
 import com.upgrd.core.discovery.ProjectDiscoveryService;
+import com.upgrd.core.documentation.ApplicationDocumenter;
+import com.upgrd.core.documentation.DocumentationWriter;
 import com.upgrd.core.logs.LogUsageAnalyzer;
 import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.AnalysisReport;
@@ -12,6 +14,7 @@ import com.upgrd.core.model.ProjectDiscovery;
 import com.upgrd.core.model.SyncReport;
 import com.upgrd.core.model.UsageReport;
 import com.upgrd.core.report.ReportWriter;
+import com.upgrd.core.security.SecurityAnalyzer;
 import com.upgrd.core.source.SourceInspector;
 import com.upgrd.core.sync.SyncAnalyzer;
 import com.upgrd.core.war.WarInspector;
@@ -29,6 +32,9 @@ public final class AnalyzeEngine {
 
     private final ProjectDiscoveryService discoveryService = new ProjectDiscoveryService();
     private final DesignAdvisoryAnalyzer designAdvisoryAnalyzer = new DesignAdvisoryAnalyzer();
+    private final SecurityAnalyzer securityAnalyzer = new SecurityAnalyzer();
+    private final ApplicationDocumenter applicationDocumenter = new ApplicationDocumenter();
+    private final DocumentationWriter documentationWriter = new DocumentationWriter();
     private final WarInspector warInspector = new WarInspector();
     private final SourceInspector sourceInspector = new SourceInspector();
     private final SyncAnalyzer syncAnalyzer = new SyncAnalyzer();
@@ -51,8 +57,13 @@ public final class AnalyzeEngine {
                 discovery.sourceRoots(),
                 discovery.profile(),
                 discovery.fingerprint());
+        var security = securityAnalyzer.analyze(input.sourceRoot(), discovery);
 
-        return new AnalysisReport(VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
+        AnalysisReport report = new AnalysisReport(
+                VERSION, Instant.now(), discovery, sync, usage, designAdvisory);
+
+        writeReport(report, security, input.sourceRoot(), input.outputDir());
+        return report;
     }
 
     public Path writeReport(AnalysisReport report, Path outputDir) throws IOException {
@@ -61,6 +72,19 @@ public final class AnalyzeEngine {
         mapper.writeValue(reportFile.toFile(), report);
         reportWriter.writeDesignAdvisory(report.designAdvisory(), outputDir);
         return reportFile;
+    }
+
+    private void writeReport(
+            AnalysisReport report,
+            com.upgrd.core.model.SecurityReport security,
+            Path sourceRoot,
+            Path outputDir) throws IOException {
+        writeReport(report, outputDir);
+        reportWriter.writeSecurityReport(security, outputDir);
+        mapper.writeValue(outputDir.resolve("usage-report.json").toFile(), report.usage());
+        var documentation = applicationDocumenter.documentAnalyzePhase(
+                report, security, sourceRoot.toAbsolutePath().normalize().toString());
+        documentationWriter.write(documentation, outputDir);
     }
 
     private void validate(AnalysisInput input) throws IOException {

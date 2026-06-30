@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="legacy-web" default="compile" basedir=".">
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+  <target name="compile">
+    <mkdir dir="${build}/classes"/>
+  </target>
+</project>

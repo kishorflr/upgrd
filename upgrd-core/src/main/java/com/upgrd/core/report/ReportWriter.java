@@ -4,10 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.upgrd.core.AnalyzeEngine;
+import com.upgrd.core.model.ApplicationDocumentation;
 import com.upgrd.core.model.ChangeLedger;
 import com.upgrd.core.model.ChangeRecord;
 import com.upgrd.core.model.DesignAdvisoryReport;
 import com.upgrd.core.model.ProjectProfile;
+import com.upgrd.core.model.SecurityReport;
 import com.upgrd.core.model.UpgradePlan;
 import com.upgrd.core.model.UpgradeStep;
 
@@ -20,7 +22,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Writes accountability reports (change ledger, design advisory) to the output directory.
+ * Writes accountability reports (change ledger, design advisory, security, documentation) to the output directory.
  */
 public final class ReportWriter {
 
@@ -33,6 +35,45 @@ public final class ReportWriter {
         Path file = outputDir.resolve("design-advisory.json");
         mapper.writeValue(file.toFile(), report);
         return file;
+    }
+
+    public Path writeSecurityReport(SecurityReport report, Path outputDir) throws IOException {
+        Files.createDirectories(outputDir);
+        Path file = outputDir.resolve("security-report.json");
+        mapper.writeValue(file.toFile(), report);
+        return file;
+    }
+
+    public ApplicationDocumentation readDocumentation(Path outputDir) throws IOException {
+        Path file = outputDir.resolve("app-documentation.json");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        return mapper.readValue(file.toFile(), ApplicationDocumentation.class);
+    }
+
+    public SecurityReport readSecurityReport(Path outputDir) throws IOException {
+        Path file = outputDir.resolve("security-report.json");
+        if (!Files.isRegularFile(file)) {
+            return null;
+        }
+        return mapper.readValue(file.toFile(), SecurityReport.class);
+    }
+
+    public com.upgrd.core.model.UsageReport readUsageReport(Path outputDir) throws IOException {
+        Path usageFile = outputDir.resolve("usage-report.json");
+        if (Files.isRegularFile(usageFile)) {
+            return mapper.readValue(usageFile.toFile(), com.upgrd.core.model.UsageReport.class);
+        }
+        Path analysisFile = outputDir.resolve("analysis-report.json");
+        if (!Files.isRegularFile(analysisFile)) {
+            return null;
+        }
+        var analysis = mapper.readTree(Files.readString(analysisFile));
+        if (analysis.has("usage")) {
+            return mapper.treeToValue(analysis.get("usage"), com.upgrd.core.model.UsageReport.class);
+        }
+        return null;
     }
 
     public Path writeChangeLedger(ChangeLedger ledger, Path outputDir) throws IOException {
