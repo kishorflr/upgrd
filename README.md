@@ -87,6 +87,7 @@ During **analyze**, UpGrd writes:
 
 - `app-documentation.json` — structured knowledge base (stack, inventory, hot paths, agent guide)
 - `AGENTS.md` — Markdown summary for human and AI agent onboarding
+- `security-report.json` — CVE/CWE findings with remediation status
 - `anti-pattern-report.json` — M5 rule pack findings (god class, SQL concat, unsafe deserialization, etc.)
 
 During **apply**, security fixes run automatically where safe (log4j, weak crypto, hardcoded secrets). Documentation and security reports are updated with post-upgrade status.
