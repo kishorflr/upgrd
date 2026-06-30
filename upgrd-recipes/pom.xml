@@ -10,18 +10,15 @@
     <version>1.1.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>upgrd-core</artifactId>
-  <name>UpGrd Core</name>
-  <description>Discovery, analysis, and reporting engine</description>
+  <artifactId>upgrd-recipes</artifactId>
+  <name>UpGrd Recipes</name>
+  <description>OpenRewrite recipe packs for UpGrd migrations</description>
 
   <dependencies>
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.datatype</groupId>
-      <artifactId>jackson-datatype-jsr310</artifactId>
+      <groupId>org.openrewrite</groupId>
+      <artifactId>rewrite-java-17</artifactId>
+      <version>${openrewrite.version}</version>
     </dependency>
     <dependency>
       <groupId>org.junit.jupiter</groupId>

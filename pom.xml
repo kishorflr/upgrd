@@ -6,7 +6,7 @@
 
   <groupId>com.upgrd</groupId>
   <artifactId>upgrd-parent</artifactId>
-  <version>1.0.0</version>
+  <version>1.1.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>UpGrd</name>
@@ -14,6 +14,7 @@
 
   <modules>
     <module>upgrd-core</module>
+    <module>upgrd-recipes</module>
     <module>upgrd-cli</module>
   </modules>
 
@@ -23,6 +24,7 @@
     <picocli.version>4.7.6</picocli.version>
     <jackson.version>2.18.2</jackson.version>
     <junit.version>5.11.4</junit.version>
+    <openrewrite.version>8.56.1</openrewrite.version>
   </properties>
 
   <dependencyManagement>
@@ -30,6 +32,11 @@
       <dependency>
         <groupId>com.upgrd</groupId>
         <artifactId>upgrd-core</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.upgrd</groupId>
+        <artifactId>upgrd-recipes</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

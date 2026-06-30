@@ -1,6 +1,7 @@
 package com.upgrd.cli;
 
 import com.upgrd.cli.command.AnalyzeCommand;
+import com.upgrd.cli.command.ApplyCommand;
 import com.upgrd.cli.command.PlanCommand;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -8,11 +9,12 @@ import picocli.CommandLine.Command;
 @Command(
         name = "upgrd",
         mixinStandardHelpOptions = true,
-        version = "UpGrd 1.0.0",
+        version = "UpGrd 1.1.0-SNAPSHOT",
         description = "Edge-local Java modernization toolkit (no AI at runtime)",
         subcommands = {
                 AnalyzeCommand.class,
-                PlanCommand.class
+                PlanCommand.class,
+                ApplyCommand.class
         })
 public final class UpGrd implements Runnable {
 
