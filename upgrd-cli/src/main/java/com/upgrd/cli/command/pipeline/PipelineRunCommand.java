@@ -3,6 +3,7 @@ package com.upgrd.cli.command.pipeline;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.pipeline.PipelineOrchestrator;
 import com.upgrd.core.pipeline.PipelineOrchestrator.PipelineRequest;
+import com.upgrd.core.ui.ReportServer;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -52,6 +53,13 @@ public final class PipelineRunCommand implements Callable<Integer> {
     @Option(names = "--wildfly-http", defaultValue = "false", description = "After verify, HTTP probe WildFly")
     private boolean wildflyHttp;
 
+    @Option(names = "--serve-ui", defaultValue = "false",
+            description = "After pipeline completes, start the audit dashboard (blocks until Ctrl+C)")
+    private boolean serveUi;
+
+    @Option(names = "--port", defaultValue = "8765", description = "Audit dashboard port when --serve-ui is set")
+    private int port;
+
     @Override
     public Integer call() throws Exception {
         var result = new PipelineOrchestrator().run(new PipelineRequest(
@@ -78,7 +86,20 @@ public final class PipelineRunCommand implements Callable<Integer> {
                     result.verifyResult().exitCode());
             System.out.printf("  Verify report: %s%n", result.verifyResult().reportPath().toAbsolutePath());
         }
-        return result.success() ? 0 : 1;
+
+        if (!result.success()) {
+            return 1;
+        }
+
+        if (serveUi) {
+            try (ReportServer server = new ReportServer(output, port)) {
+                server.start();
+                System.out.printf("UpGrd audit dashboard running at %s%n", server.baseUrl());
+                System.out.println("  Press Ctrl+C to stop.");
+                Thread.currentThread().join();
+            }
+        }
+        return 0;
     }
 
     private ProjectProfile parseProfile(String value) {

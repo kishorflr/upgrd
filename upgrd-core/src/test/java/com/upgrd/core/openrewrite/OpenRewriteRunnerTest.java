@@ -31,4 +31,25 @@ class OpenRewriteRunnerTest {
         assertFalse(result.success());
         assertTrue(result.message().contains("dry-run gate"));
     }
+
+    @Test
+    void sqlScanRecipeSkipsDryRunGate() throws Exception {
+        Path output = tempDir.resolve("upgrd-out");
+        Path migrated = output.resolve("migrated");
+        Files.createDirectories(migrated);
+        Files.writeString(migrated.resolve("pom.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>test</groupId>
+                  <artifactId>app</artifactId>
+                  <version>1.0</version>
+                  <properties><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding></properties>
+                </project>
+                """);
+
+        var result = new OpenRewriteRunner().run(
+                output, false, true, OpenRewriteRunner.SQL_SCAN_RECIPE);
+        assertTrue(result.message().contains(OpenRewriteRunner.SQL_SCAN_RECIPE));
+    }
 }

@@ -54,6 +54,7 @@ public final class OpenRewriteScaffolder {
                 ```bash
                 upgrd rewrite run --output ../upgrd-out
                 upgrd rewrite run --output ../upgrd-out --dry-run
+                upgrd rewrite run --output ../upgrd-out --recipe com.upgrd.migrated.SqlConcatenationScan --dry-run
                 ```
 
                 Or via Maven directly:

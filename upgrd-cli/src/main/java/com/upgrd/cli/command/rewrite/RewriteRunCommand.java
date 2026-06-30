@@ -25,9 +25,13 @@ public final class RewriteRunCommand implements Callable<Integer> {
     @Option(names = "--force", defaultValue = "false", description = "Skip dry-run gate check")
     private boolean force;
 
+    @Option(names = "--recipe", defaultValue = OpenRewriteRunner.DEFAULT_RECIPE,
+            description = "Active OpenRewrite recipe (e.g. com.upgrd.migrated.SqlConcatenationScan)")
+    private String recipe;
+
     @Override
     public Integer call() throws Exception {
-        var result = new OpenRewriteRunner().run(output, dryRun, requireDryRun && !force && !dryRun);
+        var result = new OpenRewriteRunner().run(output, dryRun, requireDryRun && !force && !dryRun, recipe);
         System.out.println(result.message());
         if (!result.log().isBlank()) {
             System.out.println(result.log());

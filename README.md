@@ -60,13 +60,13 @@ Reports are written locally to `--output` (default `./upgrd-out`).
 | `verify` | Runs `mvn verify`; optional `-Psecurity-verify`, `--wildfly-smoke`, `--wildfly-deploy`, `--wildfly-http` |
 | `weblogic` | `status` / `validate` — production deploy scaffold checks (no Docker) |
 | `wildfly` | `start` / `stop` / `deploy` / `undeploy` / `status` — local Docker WildFly |
-| `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run`, `--require-dry-run`, `--force`) |
+| `rewrite run` | OpenRewrite AST migrations via Maven plugin (`--dry-run`, `--recipe`, `--require-dry-run`, `--force`) |
 | `report-failure` | Sanitized AI-safe failure export from captured logs |
 | `export` | Bundle audit reports into JSON/Markdown; `--html` and `--pdf` for sign-off |
 | `run --serve-ui` | Local audit dashboard with diffs, verify status, and security tab |
 | `pipeline run` | Full analyze → plan → apply → verify in one command |
-| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions, config, JSP/validation hints, Thymeleaf scaffolds), Spring 4→6, javax→jakarta, raw collections, security fixes |
-| **Recipes (planned)** | Full Struts controller wiring, SQL OpenRewrite search recipes |
+| **Recipes (implemented)** | Ant→Maven, Java 21, log4j→SLF4J, Struts→Spring (actions with struts-config paths, config hints, JSP/validation, Thymeleaf), Spring 4→6, javax→jakarta, raw collections, security fixes |
+| **Recipes (planned)** | Typed form beans, full OpenRewrite SQL search recipes |
 
 ### WildFly (local smoke deploy)
 
@@ -88,6 +88,7 @@ WARs are hot-deployed via the `deployments/` volume mount (no `docker cp` requir
 ```bash
 upgrd rewrite run --output ./upgrd-out --dry-run
 upgrd rewrite run --output ./upgrd-out
+upgrd rewrite run --output ./upgrd-out --recipe com.upgrd.migrated.SqlConcatenationScan --dry-run
 ```
 
 POM plugin/BOM injection happens at `rewrite run` time so normal `mvn verify` stays lightweight.
@@ -105,7 +106,7 @@ Validates `deploy/weblogic/` overlays, `wldeploy.sh` / `wldeploy.properties`, an
 
 ### CI (GitHub Actions)
 
-`.github/workflows/ci.yml` runs `mvn verify` on every push/PR and uploads `upgrd.jar` as a workflow artifact when green.
+`.github/workflows/ci.yml` runs `mvn verify` on every push/PR and uploads `upgrd.jar` as a workflow artifact when green. Tag `v*` pushes create a GitHub Release with the shaded JAR (`.github/workflows/release.yml`).
 
 ### One-shot pipeline
 
@@ -118,6 +119,9 @@ upgrd pipeline run \
 
 # Backend (no WAR):
 upgrd pipeline run --source ./legacy-backend --output ./upgrd-out --profile legacy-backend --skip-verify
+
+# Open audit dashboard when done:
+upgrd pipeline run --source ./legacy-app --output ./upgrd-out --profile legacy-web --skip-verify --serve-ui
 ```
 
 Open http://127.0.0.1:8765 for the audit dashboard (profile, plan reasoning, change ledger, design advisory).

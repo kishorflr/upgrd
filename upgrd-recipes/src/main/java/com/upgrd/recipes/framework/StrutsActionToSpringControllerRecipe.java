@@ -1,7 +1,9 @@
 package com.upgrd.recipes.framework;
 
-import com.upgrd.recipes.FileRecipe;
+import com.upgrd.recipes.ProjectAwareRecipe;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,15 +12,23 @@ import java.util.regex.Pattern;
  * Migrates Struts 1 {@code Action} classes to Spring MVC {@code @Controller} stubs,
  * preserving execute() body statements where possible.
  */
-public final class StrutsActionToSpringControllerRecipe implements FileRecipe {
+public final class StrutsActionToSpringControllerRecipe implements ProjectAwareRecipe {
 
+    private static final Pattern PACKAGE = Pattern.compile("package\\s+([\\w.]+)\\s*;");
     private static final Pattern CLASS_ACTION = Pattern.compile(
             "public\\s+class\\s+(\\w+)\\s+extends\\s+Action\\b");
     private static final Pattern EXECUTE_BLOCK = Pattern.compile(
-            "public\\s+ActionForward\\s+execute\\s*\\(\\s*ActionMapping\\s+\\w+\\s*,\\s*ActionForm\\s+(\\w+)\\s*,"
+            "public\\s+ActionForward\\s+execute\\s*\\(\\s*ActionMapping\\s+\\w+\\s*,\\s*(\\w+)\\s+(\\w+)\\s*,"
                     + "\\s*HttpServletRequest\\s+\\w+\\s*,\\s*HttpServletResponse\\s+\\w+\\s*\\)\\s*throws\\s+Exception\\s*\\{"
                     + "([\\s\\S]*?)return\\s+mapping\\.findForward\\(\"(\\w+)\"\\)\\s*;\\s*\\}",
             Pattern.DOTALL);
+
+    private StrutsMappingIndex index = StrutsMappingIndex.empty();
+
+    @Override
+    public void prepare(Path projectRoot) throws IOException {
+        index = StrutsMappingIndex.loadFromProject(projectRoot);
+    }
 
     @Override
     public String coordinate() {
@@ -44,10 +54,9 @@ public final class StrutsActionToSpringControllerRecipe implements FileRecipe {
             return Optional.empty();
         }
         String className = classMatcher.group(1);
-        String mappingPath = "/" + className.replace("Action", "").toLowerCase();
-        if (mappingPath.equals("/")) {
-            mappingPath = "/home";
-        }
+        String packageName = extractPackage(content).orElse(null);
+        StrutsMappingIndex.ActionMapping mapping = index.findForClass(className, packageName)
+                .orElse(fallbackMapping(className));
 
         String after = content;
         after = after.replaceAll("import org\\.apache\\.struts\\.action\\.\\*;\\s*", "");
@@ -59,31 +68,16 @@ public final class StrutsActionToSpringControllerRecipe implements FileRecipe {
         after = ensureImport(after, "import org.springframework.web.bind.annotation.GetMapping;");
         after = ensureImport(after, "import org.springframework.web.bind.annotation.PostMapping;");
         after = ensureImport(after, "import org.springframework.web.bind.annotation.RequestMapping;");
+        after = ensureImport(after, "import org.springframework.web.bind.annotation.ModelAttribute;");
 
         Matcher executeMatcher = EXECUTE_BLOCK.matcher(after);
         if (executeMatcher.find()) {
-            String formParam = executeMatcher.group(1);
-            String body = executeMatcher.group(2).trim();
-            String forward = executeMatcher.group(3);
-            boolean hasForm = formParam != null && !formParam.isBlank() && !"_".equals(formParam);
-            String mapping = hasForm
-                    ? """
-                    @RequestMapping("%s")
-                    public String execute(HttpServletRequest request, HttpServletResponse response) {
-                        // UpGrd: migrated from Struts Action — bind @ModelAttribute for form '%s'
-                    %s
-                        return "%s";
-                    }
-                    """.formatted(mappingPath, formParam, indent(body, 8), forward)
-                    : """
-                    @GetMapping("%s")
-                    public String execute(HttpServletRequest request, HttpServletResponse response) {
-                        // UpGrd: migrated from Struts Action
-                    %s
-                        return "%s";
-                    }
-                    """.formatted(mappingPath, indent(body, 8), forward);
-            after = executeMatcher.replaceFirst(Matcher.quoteReplacement(mapping));
+            String formType = executeMatcher.group(1);
+            String formParam = executeMatcher.group(2);
+            String body = executeMatcher.group(3).trim();
+            String forward = executeMatcher.group(4);
+            String method = buildControllerMethod(mapping, formType, formParam, body, forward);
+            after = executeMatcher.replaceFirst(Matcher.quoteReplacement(method));
         }
 
         if (!after.contains("@Controller")) {
@@ -96,6 +90,55 @@ public final class StrutsActionToSpringControllerRecipe implements FileRecipe {
             return Optional.empty();
         }
         return Optional.of(new FileChange(relativePath, content, after));
+    }
+
+    private StrutsMappingIndex.ActionMapping fallbackMapping(String className) {
+        String path = "/" + className.replace("Action", "").toLowerCase();
+        if (path.equals("/")) {
+            path = "/home";
+        }
+        return new StrutsMappingIndex.ActionMapping(path, null, "request");
+    }
+
+    private String buildControllerMethod(
+            StrutsMappingIndex.ActionMapping mapping,
+            String formType,
+            String formParam,
+            String body,
+            String forward) {
+        String path = mapping.path();
+        boolean hasForm = mapping.hasForm()
+                || (formParam != null && !formParam.isBlank() && !"_".equals(formParam)
+                && !"ActionForm".equals(formType));
+        if (hasForm) {
+            String formName = mapping.hasForm() ? mapping.formName() : formParam;
+            String modelType = "ActionForm".equals(formType) ? "Object" : formType;
+            String param = "@ModelAttribute(\"" + formName + "\") " + modelType + " " + formParam;
+            return """
+                    @PostMapping("%s")
+                    public String execute(%s, HttpServletRequest request, HttpServletResponse response) {
+                        // UpGrd: migrated from Struts Action — review form binding for '%s'
+                    %s
+                        return "%s";
+                    }
+                    """.formatted(path, param, formName, indent(body, 8), forward);
+        }
+        return """
+                @GetMapping("%s")
+                public String execute(HttpServletRequest request, HttpServletResponse response) {
+                    // UpGrd: migrated from Struts Action
+                %s
+                    return "%s";
+                }
+                """.formatted(path, indent(body, 8), forward);
+    }
+
+    private Optional<String> extractPackage(String content) {
+        Matcher matcher = PACKAGE.matcher(content);
+        if (matcher.find()) {
+            return Optional.of(matcher.group(1));
+        }
+        return Optional.empty();
     }
 
     private String indent(String body, int spaces) {

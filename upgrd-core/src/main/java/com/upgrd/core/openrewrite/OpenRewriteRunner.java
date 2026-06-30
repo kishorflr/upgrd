@@ -12,15 +12,21 @@ import java.util.concurrent.TimeUnit;
  */
 public final class OpenRewriteRunner {
 
-    private static final String ACTIVE_RECIPE = "com.upgrd.migrated.UpgradeBaseline";
+    public static final String DEFAULT_RECIPE = "com.upgrd.migrated.UpgradeBaseline";
+    public static final String SQL_SCAN_RECIPE = "com.upgrd.migrated.SqlConcatenationScan";
 
     private final OpenRewriteMavenIntegrator integrator = new OpenRewriteMavenIntegrator();
 
     public RewriteResult run(Path outputDir, boolean dryRun) throws IOException, InterruptedException {
-        return run(outputDir, dryRun, false);
+        return run(outputDir, dryRun, false, DEFAULT_RECIPE);
     }
 
     public RewriteResult run(Path outputDir, boolean dryRun, boolean requireDryRunGate)
+            throws IOException, InterruptedException {
+        return run(outputDir, dryRun, requireDryRunGate, DEFAULT_RECIPE);
+    }
+
+    public RewriteResult run(Path outputDir, boolean dryRun, boolean requireDryRunGate, String activeRecipe)
             throws IOException, InterruptedException {
         Path migrated = outputDir.resolve("migrated").toAbsolutePath().normalize();
         Path pom = migrated.resolve("pom.xml");
@@ -28,7 +34,9 @@ public final class OpenRewriteRunner {
             throw new IOException("Migrated POM not found: " + pom);
         }
 
-        if (!dryRun && requireDryRunGate) {
+        String recipe = activeRecipe == null || activeRecipe.isBlank() ? DEFAULT_RECIPE : activeRecipe.trim();
+
+        if (!dryRun && requireDryRunGate && DEFAULT_RECIPE.equals(recipe)) {
             Path gate = migrated.resolve(".upgrd/rewrite/dry-run-passed");
             if (!Files.isRegularFile(gate)) {
                 return new RewriteResult(false, 1,
@@ -44,9 +52,9 @@ public final class OpenRewriteRunner {
         command.add("-f");
         command.add(pom.toString());
         command.add("org.openrewrite.maven:rewrite-maven-plugin:" + OpenRewriteMavenIntegrator.pluginVersion() + ":run");
-        command.add("-Drewrite.activeRecipes=" + ACTIVE_RECIPE);
+        command.add("-Drewrite.activeRecipes=" + recipe);
         command.add("-Drewrite.configLocation=.upgrd/openrewrite.yml");
-        if (dryRun) {
+        if (dryRun || SQL_SCAN_RECIPE.equals(recipe)) {
             command.add("-Drewrite.dryRun=true");
         }
 
@@ -66,9 +74,10 @@ public final class OpenRewriteRunner {
         Files.createDirectories(reportDir);
         Files.writeString(reportDir.resolve("last-run.log"), log);
 
-        return new RewriteResult(exit == 0, exit,
-                dryRun ? "OpenRewrite dry-run completed" : "OpenRewrite apply completed",
-                log);
+        String message = dryRun || SQL_SCAN_RECIPE.equals(recipe)
+                ? "OpenRewrite dry-run completed (" + recipe + ")"
+                : "OpenRewrite apply completed (" + recipe + ")";
+        return new RewriteResult(exit == 0, exit, message, log);
     }
 
     public record RewriteResult(boolean success, int exitCode, String message, String log) {

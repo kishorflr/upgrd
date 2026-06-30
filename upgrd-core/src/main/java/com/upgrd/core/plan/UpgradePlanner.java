@@ -149,7 +149,7 @@ public final class UpgradePlanner {
                 "security",
                 "OpenRewrite search scan for SQL concatenation patterns",
                 "upgrd:OpenRewriteSqlScan",
-                "Run `upgrd rewrite run --dry-run --force` with recipe com.upgrd.migrated.SqlConcatenationScan after apply",
+                "Run `upgrd rewrite run --recipe com.upgrd.migrated.SqlConcatenationScan --dry-run --force` after apply",
                 List.of("CWE-89"),
                 StepMode.ADVISORY));
 

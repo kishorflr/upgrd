@@ -22,6 +22,9 @@ public final class RecipeExecutor {
     }
 
     public RecipeRunResult runOnProject(FileRecipe recipe, Path projectRoot) throws IOException {
+        if (recipe instanceof ProjectAwareRecipe aware) {
+            aware.prepare(projectRoot);
+        }
         return run(recipe, projectRoot, CONFIG_EXT);
     }
 
