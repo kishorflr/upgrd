@@ -7,6 +7,7 @@ import com.upgrd.core.model.AnalysisInput;
 import com.upgrd.core.model.ProjectProfile;
 import com.upgrd.core.plan.UpgradePlanner;
 import com.upgrd.core.security.SecurityAnalyzer;
+import com.upgrd.core.process.MavenCommand;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -87,7 +88,7 @@ class LegacyAntWebIntegrationTest {
     }
 
     @Test
-    @EnabledIf("mavenAvailable")
+    @EnabledIf("com.upgrd.core.process.MavenCommand#isAvailable")
     void verifyRunsMigratedTests() throws Exception {
         Path source = copyFixture(tempDir.resolve("legacy"));
         Path war = createMinimalWar(tempDir.resolve("legacy.war"));
@@ -102,7 +103,7 @@ class LegacyAntWebIntegrationTest {
         Path migratedPom = output.resolve("migrated/pom.xml");
         assumeTrue(Files.isRegularFile(migratedPom));
 
-        ProcessBuilder builder = new ProcessBuilder("mvn", "-f", migratedPom.toString(), "test", "-q");
+        ProcessBuilder builder = new ProcessBuilder(MavenCommand.executable(), "-f", migratedPom.toString(), "test", "-q");
         builder.directory(output.resolve("migrated").toFile());
         builder.redirectErrorStream(true);
         Process process = builder.start();
@@ -110,15 +111,6 @@ class LegacyAntWebIntegrationTest {
         int exit = process.waitFor();
         assertTrue(exit == 0, "mvn test failed with exit " + exit + ":\n" + mvnOutput);
     }
-
-    static boolean mavenAvailable() {
-        try {
-            return new ProcessBuilder("mvn", "-version").start().waitFor() == 0;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
     private Path copyFixture(Path target) throws IOException {
         copyRecursive(fixtureRoot, target);
         return target;

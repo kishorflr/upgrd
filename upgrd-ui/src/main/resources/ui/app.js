@@ -1,7 +1,52 @@
+const PAGE_SIZE = 25;
+const loadedTabs = new Set();
+
 async function fetchReport(name) {
   const res = await fetch('/api/reports/' + name);
   if (!res.ok) return null;
   return res.json();
+}
+
+async function fetchReportPage(name, offset, limit, filter) {
+  const params = new URLSearchParams({
+    name,
+    offset: String(offset),
+    limit: String(limit)
+  });
+  if (filter && filter !== 'ALL') {
+    params.set('filter', filter);
+  }
+  const res = await fetch('/api/reports/page?' + params);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+function renderPager(pagerId, total, offset, limit, onPage) {
+  const bar = document.getElementById(pagerId);
+  if (!bar) return;
+  bar.innerHTML = '';
+  if (!total || total <= limit) return;
+  const prev = document.createElement('button');
+  prev.className = 'filter';
+  prev.type = 'button';
+  prev.textContent = 'Previous';
+  prev.disabled = offset <= 0;
+  prev.addEventListener('click', () => onPage(Math.max(0, offset - limit)));
+  const info = el('span', 'pager-info',
+    'Showing ' + (offset + 1) + '–' + Math.min(offset + limit, total) + ' of ' + total);
+  const next = document.createElement('button');
+  next.className = 'filter';
+  next.type = 'button';
+  next.textContent = 'Next';
+  next.disabled = offset + limit >= total;
+  next.addEventListener('click', () => onPage(offset + limit));
+  bar.appendChild(prev);
+  bar.appendChild(info);
+  bar.appendChild(next);
+}
+
+function invalidateTab(panelId) {
+  loadedTabs.delete(panelId);
 }
 
 function el(tag, className, text) {
@@ -173,18 +218,17 @@ function renderPlan(plan) {
   });
 }
 
-function renderChanges(ledger) {
-  renderChangeList(document.getElementById('change-ledger'), ledger,
-    'Run <code>upgrd apply</code> to generate change-ledger.json');
-}
-
-function renderChangeList(container, ledger, emptyMessage) {
+function renderChangesFromItems(container, items, emptyMessage) {
   container.innerHTML = '';
-  if (!ledger) {
+  if (!items || items.length === 0) {
     container.innerHTML = '<p class="empty">' + emptyMessage + '</p>';
     return;
   }
-  (ledger.changes || []).forEach(change => {
+  renderChangeItems(container, items);
+}
+
+function renderChangeItems(container, items) {
+  items.forEach(change => {
     const div = el('div', 'change');
     const h = el('h3');
     h.textContent = change.file + ' — ' + change.category;
@@ -213,10 +257,34 @@ function renderChangeList(container, ledger, emptyMessage) {
   });
 }
 
-let previewLedgerCache = null;
+function renderChangeList(container, ledger, emptyMessage) {
+  container.innerHTML = '';
+  if (!ledger) {
+    container.innerHTML = '<p class="empty">' + emptyMessage + '</p>';
+    return;
+  }
+  renderChangeItems(container, ledger.changes || []);
+}
+
+let changesPageOffset = 0;
+
+async function loadChangesTab(offset) {
+  changesPageOffset = offset;
+  const container = document.getElementById('change-ledger');
+  container.innerHTML = '<p class="tab-loading">Loading change ledger…</p>';
+  const page = await fetchReportPage('change-ledger.json', offset, PAGE_SIZE, 'ALL');
+  if (!page) {
+    container.innerHTML = '<p class="empty">Run <code>upgrd apply</code> to generate change-ledger.json</p>';
+    renderPager('change-ledger-pager', 0, 0, PAGE_SIZE, loadChangesTab);
+    return;
+  }
+  renderChangesFromItems(container, page.items, 'No changes recorded');
+  renderPager('change-ledger-pager', page.total, page.offset, page.limit, loadChangesTab);
+}
+
+let previewPageOffset = 0;
 let previewFilter = 'ALL';
 let featureUsageCache = null;
-let logManifestCache = null;
 let coverageFilter = 'ALL';
 
 function renderPreviewSummary(preview) {
@@ -245,24 +313,35 @@ function renderPreviewSummary(preview) {
   }
 }
 
-function renderPreviewChanges(ledger) {
-  previewLedgerCache = ledger;
+async function loadPreviewChangesPage(offset) {
+  previewPageOffset = offset;
   const container = document.getElementById('preview-changes');
-  container.innerHTML = '';
-  if (!ledger) {
+  container.innerHTML = '<p class="tab-loading">Loading preview diffs…</p>';
+  const page = await fetchReportPage(
+    'change-ledger-preview.json', offset, PAGE_SIZE, previewFilter);
+  if (!page) {
     container.innerHTML = '<p class="empty">No preview ledger — run plan preview first</p>';
+    renderPager('preview-changes-pager', 0, 0, PAGE_SIZE, loadPreviewChangesPage);
     return;
   }
-  const filtered = (ledger.changes || []).filter(c =>
-    previewFilter === 'ALL' || c.classification === previewFilter);
-  if (filtered.length === 0) {
+  if (!page.items || page.items.length === 0) {
     container.innerHTML = '<p class="empty">No changes for filter: ' + previewFilter + '</p>';
+  } else {
+    renderChangesFromItems(container, page.items, '');
+  }
+  renderPager('preview-changes-pager', page.total, page.offset, page.limit, loadPreviewChangesPage);
+}
+
+function renderPreviewChanges(ledger) {
+  if (ledger) {
+    renderChangeList(document.getElementById('preview-changes'), ledger, '');
     return;
   }
-  renderChangeList(container, { ...ledger, changes: filtered }, '');
+  loadPreviewChangesPage(previewPageOffset);
 }
 
 let approvalState = null;
+let planCache = null;
 
 function defaultApproved(step) {
   if (step.mode === 'ADVISORY') return false;
@@ -294,6 +373,7 @@ function buildApprovalFromPlan(plan, existing) {
 }
 
 function renderApproval(plan, approval) {
+  planCache = plan;
   const container = document.getElementById('approval-steps');
   container.innerHTML = '';
   if (!plan) {
@@ -323,6 +403,38 @@ function renderApproval(plan, approval) {
   });
 }
 
+async function workspaceSourceRoot() {
+  try {
+    const res = await fetch('/api/workspace');
+    if (!res.ok) return '';
+    const ws = await res.json();
+    return (ws.sourceRoot || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function approveRecommended() {
+  const status = document.getElementById('approval-status');
+  if (!approvalState || !planCache) {
+    status.textContent = 'Load a plan first (run plan upgrade)';
+    return;
+  }
+  let count = 0;
+  (planCache.steps || []).forEach(step => {
+    if (step.mode === 'ADVISORY') return;
+    if (step.classification !== 'MANDATORY' && step.classification !== 'RECOMMENDED') return;
+    const idx = approvalState.steps.findIndex(s => s.stepId === step.id);
+    if (idx < 0) return;
+    approvalState.steps[idx].approved = true;
+    approvalState.steps[idx].note = 'Approved recommended (UI)';
+    const cb = document.getElementById('approve-' + step.id);
+    if (cb) cb.checked = true;
+    count++;
+  });
+  status.textContent = 'Selected ' + count + ' mandatory/recommended step(s) — click Save approval or Apply';
+}
+
 async function saveApproval() {
   const status = document.getElementById('approval-status');
   if (!approvalState) {
@@ -330,6 +442,8 @@ async function saveApproval() {
     return;
   }
   approvalState.generatedAt = new Date().toISOString();
+  const sourceRoot = await workspaceSourceRoot();
+  if (sourceRoot) approvalState.sourceRoot = sourceRoot;
   const approved = approvalState.steps.filter(s => s.approved).length;
   if (approved === 0) {
     status.textContent = 'Approve at least one automated step';
@@ -352,25 +466,186 @@ async function saveApproval() {
   }
 }
 
-function renderApiCompatibility(report) {
-  const el_ = document.getElementById('api-compatibility');
-  el_.innerHTML = '';
-  if (!report || !report.hits || report.hits.length === 0) {
-    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> to generate api-compatibility-report.json</p>';
+function setUpgradeButtonsDisabled(disabled) {
+  ['approve-recommended', 'save-approval', 'apply-approved', 'build-verify'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = disabled;
+  });
+}
+
+function showUpgradeSummary(text) {
+  const box = document.getElementById('upgrade-action-summary');
+  if (!text) {
+    box.hidden = true;
+    box.textContent = '';
     return;
   }
-  el_.appendChild(el('p', null, report.summary || ('Total hits: ' + report.totalHits)));
-  if (report.countsByRemediationType) {
-    const dl = el('dl', 'grid');
-    Object.entries(report.countsByRemediationType).forEach(([k, v]) => {
-      if (v > 0) {
-        dl.appendChild(el('dt', null, k));
-        dl.appendChild(el('dd', null, String(v)));
-      }
-    });
-    el_.appendChild(dl);
+  box.hidden = false;
+  box.textContent = text;
+}
+
+function advisoryWarningMessage() {
+  if (!planCache) return '';
+  const advisory = (planCache.steps || []).filter(s => s.mode === 'ADVISORY');
+  if (advisory.length === 0) return '';
+  return advisory.length + ' advisory item(s) will not be applied (WAR drift, manual API rewrites, etc.).\n'
+    + advisory.map(s => '• ' + s.description).join('\n');
+}
+
+async function applyApproved() {
+  const status = document.getElementById('approval-status');
+  if (!approvalState) {
+    status.textContent = 'Nothing to apply — load plan first';
+    return;
   }
-  report.hits.forEach(hit => {
+  const approved = approvalState.steps.filter(s => s.approved).length;
+  if (approved === 0) {
+    status.textContent = 'Approve at least one automated step';
+    return;
+  }
+  const advisoryMsg = advisoryWarningMessage();
+  const prompt = 'Apply ' + approved + ' approved step(s) to upgrd-out/migrated/?'
+    + (advisoryMsg ? '\n\n' + advisoryMsg : '');
+  if (!window.confirm(prompt)) return;
+
+  setUpgradeButtonsDisabled(true);
+  status.textContent = 'Saving approval…';
+  showUpgradeSummary('');
+  await saveApproval();
+
+  status.textContent = 'Applying… (may take a minute)';
+  try {
+    const res = await fetch('/api/upgrade/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ warPolicy: 'mark-conflict' })
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      status.textContent = body.error || 'Apply failed';
+      return;
+    }
+    status.textContent = 'Applied ' + body.appliedCount + ' step(s) → ' + body.migratedRoot;
+    let summary = 'Applied: ' + body.appliedCount + ' | Skipped: ' + body.skippedCount
+      + ' | Migrated: ' + body.migratedRoot;
+    if (body.advisoryWarnings && body.advisoryWarnings.length) {
+      summary += '\n\nManual follow-up:\n' + body.advisoryWarnings.map(w => '• ' + w).join('\n');
+    }
+    showUpgradeSummary(summary);
+    await refreshAfterApply();
+  } catch (e) {
+    status.textContent = 'Apply failed: ' + e.message;
+  } finally {
+    setUpgradeButtonsDisabled(false);
+  }
+}
+
+async function buildAndVerify() {
+  const status = document.getElementById('approval-status');
+  setUpgradeButtonsDisabled(true);
+  status.textContent = 'Running mvn verify on migrated project…';
+  showUpgradeSummary('');
+  try {
+    const res = await fetch('/api/upgrade/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ securityScan: false })
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      status.textContent = body.error || 'Verify failed';
+      return;
+    }
+    status.textContent = body.passed ? 'Build passed' : 'Build failed (exit ' + body.exitCode + ')';
+    let summary = (body.passed ? 'PASSED' : 'FAILED') + ' — ' + body.command;
+    if (body.summaryLines && body.summaryLines.length) {
+      summary += '\n' + body.summaryLines.join('\n');
+    }
+    if (body.logTail) {
+      summary += '\n\n--- log tail ---\n' + body.logTail;
+    }
+    showUpgradeSummary(summary);
+    await refreshAfterApply();
+  } catch (e) {
+    status.textContent = 'Verify failed: ' + e.message;
+  } finally {
+    setUpgradeButtonsDisabled(false);
+  }
+}
+
+async function refreshAfterApply() {
+  invalidateTab('changes');
+  invalidateTab('review');
+  invalidateTab('deploy');
+  invalidateTab('verify');
+  invalidateTab('documentation');
+  const [approval, warMerge, verify, applyReport, documentation] = await Promise.all([
+    fetchReport('approved-plan.json'),
+    fetchReport('war-merge-report.json'),
+    fetchReport('verify-report.json'),
+    fetchReport('apply-report.json'),
+    fetchReport('app-documentation.json')
+  ]);
+  renderApproval(planCache, approval);
+  renderWarMerge(warMerge);
+  renderVerify(verify);
+  renderDeploy(applyReport, verify);
+  renderDocumentation(documentation);
+  if (loadedTabs.has('changes')) await loadChangesTab(changesPageOffset);
+  if (loadedTabs.has('review')) {
+    await loadReviewTab();
+  }
+}
+
+async function refreshAfterLogAnalysis() {
+  invalidateTab('coverage');
+  invalidateTab('dashboard');
+  const analysis = await fetchReport('analysis-report.json');
+  renderDashboard(analysis);
+  renderUsage(analysis);
+  if (loadedTabs.has('coverage')) {
+    await loadCoverageTab();
+  }
+}
+
+let apiPageOffset = 0;
+let apiSummaryCache = null;
+
+async function loadApiTab(offset) {
+  apiPageOffset = offset;
+  const el_ = document.getElementById('api-compatibility');
+  el_.innerHTML = '<p class="tab-loading">Loading API compatibility…</p>';
+  const page = await fetchReportPage('api-compatibility-report.json', offset, PAGE_SIZE, 'ALL');
+  if (!page) {
+    el_.innerHTML = '<p class="empty">Run <code>upgrd analyze</code> to generate api-compatibility-report.json</p>';
+    renderPager('api-compatibility-pager', 0, 0, PAGE_SIZE, loadApiTab);
+    return;
+  }
+  apiSummaryCache = page.summary;
+  renderApiCompatibilityPage(el_, page.summary, page.items);
+  renderPager('api-compatibility-pager', page.total, page.offset, page.limit, loadApiTab);
+}
+
+function renderApiCompatibilityPage(summaryEl, summary, hits) {
+  summaryEl.innerHTML = '';
+  if (!hits || hits.length === 0) {
+    summaryEl.innerHTML = '<p class="empty">No API compatibility hits</p>';
+    return;
+  }
+  if (summary) {
+    summaryEl.appendChild(el('p', null, summary.summary || ('Total hits: ' + (summary.totalHits || hits.length))));
+    if (summary.countsByRemediationType) {
+      const dl = el('dl', 'grid');
+      Object.entries(summary.countsByRemediationType).forEach(([k, v]) => {
+        if (v > 0) {
+          dl.appendChild(el('dt', null, k));
+          dl.appendChild(el('dd', null, String(v)));
+        }
+      });
+      summaryEl.appendChild(dl);
+    }
+  }
+  hits.forEach(hit => {
     const div = el('div', 'change');
     const h = el('h3');
     h.textContent = hit.file + ':' + (hit.lineRange && hit.lineRange[0]) + ' — ' + hit.api;
@@ -387,20 +662,45 @@ function renderApiCompatibility(report) {
     if (hit.snippet) {
       div.appendChild(el('pre', 'diff-block', hit.snippet));
     }
-    el_.appendChild(div);
+    summaryEl.appendChild(div);
   });
 }
 
-function renderFeatureUsage(report) {
-  featureUsageCache = report;
-  const summaryEl = document.getElementById('feature-usage-summary');
-  const manifestEl = document.getElementById('log-source-summary');
+function renderApiCompatibility(report) {
+  if (report) {
+    const el_ = document.getElementById('api-compatibility');
+    renderApiCompatibilityPage(el_, report, report.hits || []);
+    return;
+  }
+  loadApiTab(apiPageOffset);
+}
+
+let coveragePageOffset = 0;
+let logManifestPageOffset = 0;
+
+async function loadCoverageFeaturesPage(offset) {
+  coveragePageOffset = offset;
   const listEl = document.getElementById('feature-usage-list');
-  summaryEl.innerHTML = '';
-  manifestEl.innerHTML = '';
-  listEl.innerHTML = '';
-  if (!report || !report.features) {
+  listEl.innerHTML = '<p class="tab-loading">Loading features…</p>';
+  const page = await fetchReportPage(
+    'feature-usage-report.json', offset, PAGE_SIZE, coverageFilter);
+  const summaryEl = document.getElementById('feature-usage-summary');
+  if (!page) {
     summaryEl.innerHTML = '<p class="empty">Configure workspace below and run log analysis, or use <code>upgrd analyze --logs-dir</code></p>';
+    listEl.innerHTML = '';
+    renderPager('feature-usage-pager', 0, 0, PAGE_SIZE, loadCoverageFeaturesPage);
+    return;
+  }
+  featureUsageCache = page.summary;
+  renderFeatureUsageSummary(summaryEl, page.summary);
+  renderFeatureUsageItems(listEl, page.items);
+  renderPager('feature-usage-pager', page.total, page.offset, page.limit, loadCoverageFeaturesPage);
+}
+
+function renderFeatureUsageSummary(summaryEl, report) {
+  summaryEl.innerHTML = '';
+  if (!report) {
+    summaryEl.innerHTML = '<p class="empty">No feature usage data</p>';
     return;
   }
   const dl = el('dl', 'grid');
@@ -414,19 +714,19 @@ function renderFeatureUsage(report) {
   });
   summaryEl.appendChild(dl);
   if (report.hitsByLogKind) {
-    const kinds = el('p', 'muted', 'Lines by log kind: ' +
-      Object.entries(report.hitsByLogKind).map(([k, v]) => k + '=' + v).join(', '));
-    summaryEl.appendChild(kinds);
+    summaryEl.appendChild(el('p', 'muted', 'Lines by log kind: ' +
+      Object.entries(report.hitsByLogKind).map(([k, v]) => k + '=' + v).join(', ')));
   }
   if (report.notes && report.notes.length) {
     const ul = el('ul');
     report.notes.forEach(note => ul.appendChild(el('li', null, note)));
     summaryEl.appendChild(ul);
   }
-  renderLogManifest(manifestEl, logManifestCache, report.logSources);
-  const features = (report.features || []).filter(f =>
-    coverageFilter === 'ALL' || f.health === coverageFilter);
-  if (!features.length) {
+}
+
+function renderFeatureUsageItems(listEl, features) {
+  listEl.innerHTML = '';
+  if (!features || features.length === 0) {
     listEl.innerHTML = '<p class="empty">No features match filter</p>';
     return;
   }
@@ -457,23 +757,62 @@ function renderFeatureUsage(report) {
   });
 }
 
-function renderLogManifest(container, manifest, sources) {
-  container.innerHTML = '<h3>Log sources</h3>';
-  const entries = manifest && manifest.entries ? manifest.entries : (sources || []);
-  if (!entries.length) {
+function renderFeatureUsage(report) {
+  if (report && report.features) {
+    featureUsageCache = report;
+    renderFeatureUsageSummary(document.getElementById('feature-usage-summary'), report);
+    renderFeatureUsageItems(document.getElementById('feature-usage-list'), report.features);
+    return;
+  }
+  loadCoverageFeaturesPage(coveragePageOffset);
+}
+
+async function loadLogManifestPage(offset) {
+  logManifestPageOffset = offset;
+  const container = document.getElementById('log-source-summary');
+  container.innerHTML = '<p class="tab-loading">Loading log sources…</p>';
+  const page = await fetchReportPage('log-source-manifest.json', offset, PAGE_SIZE, 'ALL');
+  renderLogManifestPage(container, page);
+  if (page) {
+    renderPager('log-source-pager', page.total, page.offset, page.limit, loadLogManifestPage);
+  } else {
+    renderPager('log-source-pager', 0, 0, PAGE_SIZE, loadLogManifestPage);
+  }
+}
+
+function renderLogManifestPage(container, page) {
+  container.innerHTML = '';
+  container.appendChild(el('h3', null, 'Log sources'));
+  if (!page || !page.items || page.items.length === 0) {
     container.appendChild(el('p', 'empty', 'No staged logs yet'));
     return;
   }
   const ul = el('ul');
-  entries.slice(0, 40).forEach(entry => {
+  page.items.forEach(entry => {
     const label = entry.stagedFile || entry.originalName || JSON.stringify(entry);
     const detail = (entry.kind || '') + ' ← ' + (entry.archiveSource || entry.originalName || '');
     ul.appendChild(el('li', null, label + ' (' + detail + ')'));
   });
-  if (entries.length > 40) {
-    ul.appendChild(el('li', 'muted', '… and ' + (entries.length - 40) + ' more'));
-  }
   container.appendChild(ul);
+}
+
+function renderLogManifest(container, manifest, sources) {
+  if (manifest && manifest.entries) {
+    container.innerHTML = '';
+    container.appendChild(el('h3', null, 'Log sources'));
+    const ul = el('ul');
+    manifest.entries.slice(0, 40).forEach(entry => {
+      const label = entry.stagedFile || entry.originalName || JSON.stringify(entry);
+      const detail = (entry.kind || '') + ' ← ' + (entry.archiveSource || entry.originalName || '');
+      ul.appendChild(el('li', null, label + ' (' + detail + ')'));
+    });
+    if (manifest.entries.length > 40) {
+      ul.appendChild(el('li', 'muted', '… and ' + (manifest.entries.length - 40) + ' more (use pager after reload)'));
+    }
+    container.appendChild(ul);
+    return;
+  }
+  loadLogManifestPage(logManifestPageOffset);
 }
 
 async function loadWorkspace() {
@@ -522,22 +861,10 @@ async function runLogAnalysis() {
     }
     status.textContent = 'Done — ' + body.stagedLogFiles + ' log file(s), ' +
       body.observedFeatures + ' observed, ' + body.brokenFeatures + ' broken';
-    await refreshReports();
+    await refreshAfterLogAnalysis();
   } catch (e) {
     status.textContent = 'Analysis failed: ' + e.message;
   }
-}
-
-async function refreshReports() {
-  const [analysis, featureUsage, logManifest] = await Promise.all([
-    fetchReport('analysis-report.json'),
-    fetchReport('feature-usage-report.json'),
-    fetchReport('log-source-manifest.json')
-  ]);
-  logManifestCache = logManifest;
-  renderDashboard(analysis);
-  renderFeatureUsage(featureUsage);
-  renderUsage(analysis);
 }
 
 function renderDesign(report) {
@@ -640,7 +967,7 @@ function renderVerify(verify) {
   const el_ = document.getElementById('verify-report');
   el_.innerHTML = '';
   if (!verify) {
-    el_.innerHTML = '<p class="empty">Run <code>upgrd verify --output ./upgrd-out</code></p>';
+    el_.innerHTML = '<p class="empty">Run <strong>Build &amp; verify</strong> on the Review tab, or <code>upgrd verify --output ./upgrd-out</code></p>';
     return;
   }
   const status = verify.passed ? badge('passed', 'automated') : badge('failed', 'risk-high');
@@ -687,7 +1014,7 @@ function renderDeploy(applyReport, verify) {
   const el_ = document.getElementById('deploy-pipeline');
   el_.innerHTML = '';
   if (!applyReport && !verify) {
-    el_.innerHTML = '<p class="empty">Run <code>upgrd apply</code> and <code>upgrd verify --wildfly-smoke</code></p>';
+    el_.innerHTML = '<p class="empty">Use <strong>Apply approved steps</strong> and <strong>Build &amp; verify</strong> on the Review tab</p>';
     return;
   }
   if (applyReport && applyReport.steps) {
@@ -736,12 +1063,99 @@ function renderDocumentation(doc) {
   });
 }
 
+async function loadDashboardTab() {
+  const [analysis, warMerge] = await Promise.all([
+    fetchReport('analysis-report.json'),
+    fetchReport('war-merge-report.json')
+  ]);
+  renderDashboard(analysis);
+  renderWarMerge(warMerge);
+  renderUsage(analysis);
+}
+
+async function loadPlanTab() {
+  const plan = await fetchReport('upgrade-plan.json');
+  renderPlan(plan);
+}
+
+async function loadReviewTab() {
+  const [previewReport, plan, approval] = await Promise.all([
+    fetchReport('upgrade-preview-report.json'),
+    fetchReport('upgrade-plan.json'),
+    fetchReport('approved-plan.json')
+  ]);
+  planCache = plan;
+  renderPreviewSummary(previewReport);
+  renderApproval(plan, approval);
+  await loadPreviewChangesPage(previewPageOffset);
+}
+
+async function loadCoverageTab() {
+  await Promise.all([
+    loadLogManifestPage(logManifestPageOffset),
+    loadCoverageFeaturesPage(coveragePageOffset)
+  ]);
+}
+
+async function loadDesignTab() {
+  renderDesign(await fetchReport('design-advisory.json'));
+}
+
+async function loadAntipatternsTab() {
+  renderAntiPatterns(await fetchReport('anti-pattern-report.json'));
+}
+
+async function loadSecurityTab() {
+  renderSecurity(await fetchReport('security-report.json'));
+}
+
+async function loadVerifyTab() {
+  renderVerify(await fetchReport('verify-report.json'));
+}
+
+async function loadDeployTab() {
+  const [applyReport, verify] = await Promise.all([
+    fetchReport('apply-report.json'),
+    fetchReport('verify-report.json')
+  ]);
+  renderDeploy(applyReport, verify);
+}
+
+async function loadDocumentationTab() {
+  renderDocumentation(await fetchReport('app-documentation.json'));
+}
+
+const TAB_LOADERS = {
+  dashboard: loadDashboardTab,
+  plan: loadPlanTab,
+  review: loadReviewTab,
+  compatibility: () => loadApiTab(apiPageOffset),
+  coverage: loadCoverageTab,
+  changes: () => loadChangesTab(changesPageOffset),
+  design: loadDesignTab,
+  antipatterns: loadAntipatternsTab,
+  security: loadSecurityTab,
+  verify: loadVerifyTab,
+  deploy: loadDeployTab,
+  documentation: loadDocumentationTab
+};
+
+async function activateTab(panelId) {
+  document.querySelectorAll('.tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.panel === panelId);
+  });
+  document.querySelectorAll('.panel').forEach(p => {
+    p.classList.toggle('active', p.id === panelId);
+  });
+  if (!loadedTabs.has(panelId) && TAB_LOADERS[panelId]) {
+    await TAB_LOADERS[panelId]();
+    loadedTabs.add(panelId);
+  }
+}
+
 document.querySelectorAll('.tab').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.panel).classList.add('active');
+    activateTab(btn.dataset.panel);
   });
 });
 
@@ -750,7 +1164,8 @@ document.querySelectorAll('#review-filters .filter').forEach(btn => {
     document.querySelectorAll('#review-filters .filter').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     previewFilter = btn.dataset.classification;
-    renderPreviewChanges(previewLedgerCache);
+    previewPageOffset = 0;
+    loadPreviewChangesPage(0);
   });
 });
 
@@ -759,7 +1174,8 @@ document.querySelectorAll('#coverage-filters .filter').forEach(btn => {
     document.querySelectorAll('#coverage-filters .filter').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     coverageFilter = btn.dataset.health;
-    renderFeatureUsage(featureUsageCache);
+    coveragePageOffset = 0;
+    loadCoverageFeaturesPage(0);
   });
 });
 
@@ -767,44 +1183,13 @@ document.getElementById('save-workspace').addEventListener('click', saveWorkspac
 document.getElementById('run-log-analysis').addEventListener('click', runLogAnalysis);
 
 document.getElementById('save-approval').addEventListener('click', saveApproval);
+document.getElementById('approve-recommended').addEventListener('click', approveRecommended);
+document.getElementById('apply-approved').addEventListener('click', applyApproved);
+document.getElementById('build-verify').addEventListener('click', buildAndVerify);
 
 async function init() {
-  const [analysis, plan, ledger, previewReport, previewLedger, approval, apiCompat, featureUsage, logManifest, warMerge, design, antiPatterns, security, verify, applyReport, documentation] = await Promise.all([
-    fetchReport('analysis-report.json'),
-    fetchReport('upgrade-plan.json'),
-    fetchReport('change-ledger.json'),
-    fetchReport('upgrade-preview-report.json'),
-    fetchReport('change-ledger-preview.json'),
-    fetchReport('approved-plan.json'),
-    fetchReport('api-compatibility-report.json'),
-    fetchReport('feature-usage-report.json'),
-    fetchReport('log-source-manifest.json'),
-    fetchReport('war-merge-report.json'),
-    fetchReport('design-advisory.json'),
-    fetchReport('anti-pattern-report.json'),
-    fetchReport('security-report.json'),
-    fetchReport('verify-report.json'),
-    fetchReport('apply-report.json'),
-    fetchReport('app-documentation.json')
-  ]);
-  logManifestCache = logManifest;
-  renderDashboard(analysis);
-  renderWarMerge(warMerge);
-  renderPlan(plan);
-  renderChanges(ledger);
-  renderPreviewSummary(previewReport);
-  renderPreviewChanges(previewLedger);
-  renderApproval(plan, approval);
-  renderApiCompatibility(apiCompat);
-  renderFeatureUsage(featureUsage);
-  renderDesign(design);
-  renderAntiPatterns(antiPatterns);
-  renderUsage(analysis);
-  renderSecurity(security);
-  renderVerify(verify);
-  renderDeploy(applyReport, verify);
-  renderDocumentation(documentation);
   loadWorkspace();
+  await activateTab('dashboard');
 }
 
 init();

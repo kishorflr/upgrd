@@ -56,7 +56,9 @@ public final class ReportServer implements AutoCloseable {
             .registerModule(new JavaTimeModule())
             .enable(SerializationFeature.INDENT_OUTPUT);
     private final UiAnalyzeService uiAnalyzeService = new UiAnalyzeService();
+    private final UiUpgradeService uiUpgradeService = new UiUpgradeService();
     private final WorkspaceStore workspaceStore = new WorkspaceStore();
+    private final PaginatedReportService paginatedReportService = new PaginatedReportService();
 
     public ReportServer(Path outputDir, int port) throws IOException {
         this.outputDir = outputDir.toAbsolutePath().normalize();
@@ -64,11 +66,14 @@ public final class ReportServer implements AutoCloseable {
         this.server = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
         server.createContext("/", this::handleRoot);
         server.createContext("/api/reports/", this::handleReport);
+        server.createContext("/api/reports/page", this::handleReportPage);
         server.createContext("/api/approval", this::handleApproval);
+        server.createContext("/api/upgrade/apply", this::handleUpgradeApply);
+        server.createContext("/api/upgrade/verify", this::handleUpgradeVerify);
         server.createContext("/api/workspace", this::handleWorkspace);
         server.createContext("/api/analyze/logs", this::handleAnalyzeLogs);
         server.createContext("/ui/", this::handleStatic);
-        server.setExecutor(Executors.newFixedThreadPool(2));
+        server.setExecutor(Executors.newFixedThreadPool(4));
     }
 
     public void start() {
@@ -166,6 +171,46 @@ public final class ReportServer implements AutoCloseable {
         exchange.sendResponseHeaders(405, -1);
     }
 
+    private void handleUpgradeApply(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+        JsonNode body = mapper.readTree(exchange.getRequestBody());
+        String warPolicy = body.hasNonNull("warPolicy") ? body.get("warPolicy").asText() : null;
+        try {
+            var result = uiUpgradeService.applyApproved(outputDir, warPolicy);
+            writeJson(exchange, 200, result);
+        } catch (Exception ex) {
+            sendJsonError(exchange, 400, ex.getMessage());
+        }
+    }
+
+    private void handleUpgradeVerify(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if (!"POST".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+        JsonNode body = mapper.readTree(exchange.getRequestBody());
+        boolean securityScan = body.has("securityScan") && body.get("securityScan").asBoolean(false);
+        try {
+            var result = uiUpgradeService.verifyBuild(outputDir, securityScan);
+            writeJson(exchange, 200, result);
+        } catch (Exception ex) {
+            sendJsonError(exchange, 400, ex.getMessage());
+        }
+    }
+
     private void handleAnalyzeLogs(HttpExchange exchange) throws IOException {
         addCors(exchange);
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
@@ -193,6 +238,58 @@ public final class ReportServer implements AutoCloseable {
         exchange.sendResponseHeaders(code, body.length);
         try (OutputStream out = exchange.getResponseBody()) {
             out.write(body);
+        }
+    }
+
+    private void handleReportPage(HttpExchange exchange) throws IOException {
+        addCors(exchange);
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(204, -1);
+            return;
+        }
+        if (!"GET".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(405, -1);
+            return;
+        }
+        String query = exchange.getRequestURI().getRawQuery();
+        String reportName = queryParam(query, "name");
+        if (reportName == null || !REPORT_FILES.contains(reportName) || reportName.contains("..")) {
+            sendJsonError(exchange, 400, "Invalid or missing report name");
+            return;
+        }
+        int offset = parseIntParam(query, "offset", 0);
+        int limit = parseIntParam(query, "limit", 25);
+        String filter = queryParam(query, "filter");
+        try {
+            var page = paginatedReportService.page(outputDir, reportName, offset, limit, filter);
+            writeJson(exchange, 200, page);
+        } catch (Exception ex) {
+            sendJsonError(exchange, 400, ex.getMessage());
+        }
+    }
+
+    private String queryParam(String query, String key) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        for (String part : query.split("&")) {
+            int eq = part.indexOf('=');
+            if (eq > 0 && part.substring(0, eq).equals(key)) {
+                return java.net.URLDecoder.decode(part.substring(eq + 1), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
+    private int parseIntParam(String query, String key, int defaultValue) {
+        String value = queryParam(query, key);
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ex) {
+            return defaultValue;
         }
     }
 

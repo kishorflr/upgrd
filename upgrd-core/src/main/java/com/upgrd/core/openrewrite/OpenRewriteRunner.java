@@ -1,5 +1,7 @@
 package com.upgrd.core.openrewrite;
 
+import com.upgrd.core.process.MavenCommand;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,7 +50,7 @@ public final class OpenRewriteRunner {
         integrator.ensurePluginConfigured(migrated);
 
         List<String> command = new ArrayList<>();
-        command.add("mvn");
+        command.add(MavenCommand.executable());
         command.add("-f");
         command.add(pom.toString());
         command.add("org.openrewrite.maven:rewrite-maven-plugin:" + OpenRewriteMavenIntegrator.pluginVersion() + ":run");

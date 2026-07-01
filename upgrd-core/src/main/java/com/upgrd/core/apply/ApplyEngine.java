@@ -58,6 +58,7 @@ public final class ApplyEngine {
     private final RecipeExecutor recipeExecutor = new RecipeExecutor();
     private final RecipeCatalog recipeCatalog = new RecipeCatalog();
     private final WarAuthoritativeMerger warAuthoritativeMerger = new WarAuthoritativeMerger();
+    private final CompileClosureService compileClosureService = new CompileClosureService();
 
     public UpgradePlan loadPlan(Path planFile) throws IOException {
         return mapper.readValue(planFile.toFile(), UpgradePlan.class);
@@ -121,6 +122,31 @@ public final class ApplyEngine {
             if ("APPLIED".equals(stepResult.status()) && step.recipe() != null) {
                 appliedRecipeIds.add(step.recipe());
             }
+        }
+
+        if (Files.isRegularFile(migratedRoot.resolve("pom.xml"))) {
+            CompileClosureService.ClosureResult closure = compileClosureService.close(migratedRoot);
+            String closureMessage = describeClosure(closure);
+            allChanges.add(new ChangeRecord(
+                    "compile-closure-0001",
+                    "upgrd:CompileClosure",
+                    "build",
+                    "app-web/pom.xml",
+                    List.of(),
+                    "",
+                    closureMessage,
+                    "Align Maven dependencies with generated imports and verify compile",
+                    closure.dependenciesAdded(),
+                    closure.compilePassed() ? "LOW" : "MEDIUM",
+                    true,
+                    AnalyzeEngine.VERSION,
+                    true,
+                    com.upgrd.core.model.ChangeClassification.MANDATORY));
+            results.add(new ApplyStepResult(
+                    "compile-closure",
+                    "upgrd:CompileClosure",
+                    closure.ran() ? (closure.compilePassed() ? "APPLIED" : "PARTIAL") : "SKIPPED",
+                    closureMessage));
         }
 
         ChangeLedger ledger = new ChangeLedger(
@@ -556,6 +582,26 @@ public final class ApplyEngine {
         }
 
         return new ApplyStepResult(step.id(), step.recipe(), "APPLIED", runResult.message());
+    }
+
+    private String describeClosure(CompileClosureService.ClosureResult closure) {
+        if (!closure.ran()) {
+            return closure.compileLogTail();
+        }
+        StringBuilder sb = new StringBuilder();
+        if (closure.dependenciesAdded().isEmpty()) {
+            sb.append("No new Maven dependencies required");
+        } else {
+            sb.append("Added dependencies: ").append(String.join(", ", closure.dependenciesAdded()));
+        }
+        if (closure.compileAttempted()) {
+            sb.append(closure.compilePassed() ? " | mvn compile: PASSED" : " | mvn compile: FAILED");
+            if (!closure.compilePassed() && closure.compileLogTail() != null
+                    && !closure.compileLogTail().isBlank()) {
+                sb.append("\n").append(closure.compileLogTail());
+            }
+        }
+        return sb.toString();
     }
 
     private String truncate(String text) {

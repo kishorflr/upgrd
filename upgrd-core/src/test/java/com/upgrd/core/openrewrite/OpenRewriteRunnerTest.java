@@ -1,6 +1,7 @@
 package com.upgrd.core.openrewrite;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
@@ -33,6 +34,7 @@ class OpenRewriteRunnerTest {
     }
 
     @Test
+    @EnabledIf("com.upgrd.core.process.MavenCommand#isAvailable")
     void sqlScanRecipeSkipsDryRunGate() throws Exception {
         Path output = tempDir.resolve("upgrd-out");
         Path migrated = output.resolve("migrated");

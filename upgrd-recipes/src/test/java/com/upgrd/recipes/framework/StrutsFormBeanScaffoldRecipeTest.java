@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StrutsFormBeanScaffoldRecipeTest {
@@ -47,6 +48,58 @@ class StrutsFormBeanScaffoldRecipeTest {
         assertTrue(source.contains("private String username"));
         assertTrue(source.contains("private String email"));
         assertTrue(source.contains("getUsername"));
+        assertTrue(source.contains("@NotNull"));
+    }
+
+    @Test
+    void convertsExistingActionFormSubclassInPlace() throws Exception {
+        Path webInf = projectRoot.resolve("src/main/webapp/WEB-INF");
+        Files.createDirectories(webInf);
+        Files.writeString(webInf.resolve("struts-config.xml"), """
+                <struts-config>
+                  <form-beans>
+                    <form-bean name="loginForm" type="com.demo.verify.LoginForm"/>
+                  </form-beans>
+                </struts-config>
+                """);
+        Files.writeString(webInf.resolve("validation.xml"), """
+                <form-validation>
+                  <formset>
+                    <form name="loginForm">
+                      <field property="username" depends="required"/>
+                    </form>
+                  </formset>
+                </form-validation>
+                """);
+        Path formPath = projectRoot.resolve("src/main/java/com/demo/verify/LoginForm.java");
+        Files.createDirectories(formPath.getParent());
+        Files.writeString(formPath, """
+                package com.demo.verify;
+
+                import org.apache.struts.action.ActionForm;
+
+                public class LoginForm extends ActionForm {
+                    private String username;
+                    private String password;
+
+                    public String getUsername() { return username; }
+                    public void setUsername(String username) { this.username = username; }
+                    public String getPassword() { return password; }
+                    public void setPassword(String password) { this.password = password; }
+                }
+                """);
+        Files.writeString(projectRoot.resolve("src/main/java/com/demo/verify/LoginAction.java"), """
+                package com.demo.verify;
+                public class LoginAction {}
+                """);
+
+        var changes = new StrutsFormBeanScaffoldRecipe().generateChanges(projectRoot);
+        assertTrue(changes.size() == 1);
+        String source = changes.get(0).after();
+        assertFalse(source.contains("ActionForm"));
+        assertFalse(source.contains("org.apache.struts"));
+        assertTrue(source.contains("private String username"));
+        assertTrue(source.contains("private String password"));
         assertTrue(source.contains("@NotNull"));
     }
 

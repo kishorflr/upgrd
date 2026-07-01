@@ -12,7 +12,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApplyEngineTest {
@@ -57,7 +56,8 @@ class ApplyEngineTest {
         assertTrue(migrated.contains("LoggerFactory"));
         assertTrue(!migrated.contains("org.apache.log4j"));
 
-        assertEquals(2, report.steps().stream().filter(s -> "APPLIED".equals(s.status())).count());
+        assertTrue(report.steps().stream().anyMatch(s -> "compile-closure".equals(s.stepId())));
+        assertTrue(report.steps().stream().filter(s -> "APPLIED".equals(s.status())).count() >= 2);
         assertTrue(Files.isRegularFile(output.resolve("change-ledger.json")));
     }
 }

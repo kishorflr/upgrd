@@ -51,15 +51,20 @@
         <button class="filter" data-classification="OPTIONAL">Optional</button>
         <button class="filter" data-classification="REWRITE_REQUIRED">Rewrite required</button>
       </div>
-      <div id="preview-summary" class="card">Loading…</div>
-      <div id="preview-changes" class="card">Loading…</div>
+      <div id="preview-summary" class="card">Open tab to load…</div>
+      <div id="preview-changes" class="card">Open tab to load…</div>
+      <div id="preview-changes-pager" class="pager-bar"></div>
       <h2>Step Approval</h2>
-      <p class="muted">Approve steps before apply. Saved locally to <code>approved-plan.json</code>.</p>
+      <p class="muted">Approve automated steps, then apply and build from here. Advisory items (WAR drift, manual rewrites) stay manual.</p>
       <div id="approval-steps" class="card">Loading…</div>
       <div class="approval-actions">
+        <button id="approve-recommended" class="filter" type="button">Approve recommended</button>
         <button id="save-approval" class="filter active" type="button">Save approval</button>
+        <button id="apply-approved" class="filter primary" type="button">Apply approved steps</button>
+        <button id="build-verify" class="filter primary" type="button">Build &amp; verify</button>
         <span id="approval-status" class="muted"></span>
       </div>
+      <div id="upgrade-action-summary" class="card muted" hidden></div>
     </section>
 
     <section id="plan" class="panel">
@@ -70,7 +75,8 @@
     <section id="compatibility" class="panel">
       <h2>API Compatibility Catalog</h2>
       <p class="muted">Unsupported → replacement → manual rewrites linked to source hits (M18).</p>
-      <div id="api-compatibility" class="card">Loading…</div>
+      <div id="api-compatibility" class="card">Open tab to load…</div>
+      <div id="api-compatibility-pager" class="pager-bar"></div>
     </section>
 
     <section id="coverage" class="panel">
@@ -93,14 +99,17 @@
         <button class="filter" data-health="BROKEN">Broken</button>
         <button class="filter" data-health="UNOBSERVED">Unobserved</button>
       </div>
-      <div id="feature-usage-summary" class="card">Loading…</div>
-      <div id="log-source-summary" class="card">Loading…</div>
-      <div id="feature-usage-list" class="card">Loading…</div>
+      <div id="feature-usage-summary" class="card">Open tab to load…</div>
+      <div id="log-source-summary" class="card"></div>
+      <div id="log-source-pager" class="pager-bar"></div>
+      <div id="feature-usage-list" class="card"></div>
+      <div id="feature-usage-pager" class="pager-bar"></div>
     </section>
 
     <section id="changes" class="panel">
       <h2>Change Ledger</h2>
-      <div id="change-ledger" class="card">Loading…</div>
+      <div id="change-ledger" class="card">Open tab to load…</div>
+      <div id="change-ledger-pager" class="pager-bar"></div>
     </section>
 
     <section id="design" class="panel">
@@ -144,6 +153,7 @@
 
   <footer>
     <p>Reports served from local <code>--output</code> directory only.</p>
+    <p class="muted">Large reports load per tab with pagination (25 items per page).</p>
     <p class="muted">After <code>upgrd verify</code>, failure reports appear in <code>migrated/.upgrd/failure-report/</code>.</p>
     <p class="muted">Run <code>upgrd export --pdf --output ./upgrd-out</code> for compliance PDF sign-off.</p>
   </footer>

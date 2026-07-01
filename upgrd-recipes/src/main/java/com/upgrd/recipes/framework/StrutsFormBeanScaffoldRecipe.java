@@ -7,13 +7,22 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Scaffolds typed Spring MVC form POJOs from Struts {@code form-bean} definitions.
  */
 public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
+
+    private static final Pattern ACTION_FORM_CLASS = Pattern.compile(
+            "public\\s+class\\s+(\\w+)\\s+extends\\s+(?:org\\.apache\\.struts\\.action\\.)?ActionForm\\b");
+    private static final Pattern PRIVATE_STRING_FIELD = Pattern.compile(
+            "private\\s+String\\s+(\\w+)\\s*;");
 
     private StrutsMappingIndex mappingIndex = StrutsMappingIndex.empty();
     private StrutsValidationIndex validationIndex = StrutsValidationIndex.empty();
@@ -34,12 +43,18 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
             String fqcn = resolveFqcn(bean, defaultPackage);
             String relativePath = fqcnToRelativePath(fqcn);
             Path target = projectRoot.resolve(relativePath);
-            if (Files.isRegularFile(target)) {
-                continue;
-            }
             List<StrutsValidationIndex.ValidationField> fields = validationIndex.fieldsFor(bean.name());
             if (fields.isEmpty()) {
                 fields = List.of(new StrutsValidationIndex.ValidationField("username", List.of()));
+            }
+            if (Files.isRegularFile(target)) {
+                String existing = Files.readString(target);
+                if (isActionFormSubclass(existing)) {
+                    fields = mergeFields(fields, existing);
+                    String source = generateSource(fqcn, bean.name(), fields);
+                    changes.add(new FileChange(relativePath, existing, source));
+                }
+                continue;
             }
             String source = generateSource(fqcn, bean.name(), fields);
             changes.add(new FileChange(relativePath, "", source));
@@ -60,6 +75,25 @@ public final class StrutsFormBeanScaffoldRecipe implements BulkFileRecipe {
     @Override
     public Optional<FileChange> transform(String relativePath, String content) {
         return Optional.empty();
+    }
+
+    private boolean isActionFormSubclass(String content) {
+        return ACTION_FORM_CLASS.matcher(content).find();
+    }
+
+    private List<StrutsValidationIndex.ValidationField> mergeFields(
+            List<StrutsValidationIndex.ValidationField> fromValidation,
+            String existingContent) {
+        Map<String, StrutsValidationIndex.ValidationField> merged = new LinkedHashMap<>();
+        for (StrutsValidationIndex.ValidationField field : fromValidation) {
+            merged.put(field.property(), field);
+        }
+        Matcher matcher = PRIVATE_STRING_FIELD.matcher(existingContent);
+        while (matcher.find()) {
+            merged.putIfAbsent(matcher.group(1),
+                    new StrutsValidationIndex.ValidationField(matcher.group(1), List.of()));
+        }
+        return List.copyOf(merged.values());
     }
 
     private String inferDefaultPackage(Path projectRoot) throws IOException {

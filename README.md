@@ -7,12 +7,22 @@ Edge-local Java modernization toolkit. Analyzes legacy applications (source, WAR
 ## Prerequisites
 
 - **Java 21** (JDK)
-- **Maven 3.9+**
+- **Maven 3.9+** on your **PATH** (or set **`MAVEN_HOME`**). UpGrd runs `mvn` as a subprocess during apply/verify and in some tests; IntelliJ’s bundled Maven is used only for the IDE build, not for those subprocess calls.
 
 ```bash
 # macOS (Homebrew)
 brew install openjdk@21 maven
 ```
+
+### Windows / IntelliJ IDEA
+
+1. Install [Maven](https://maven.apache.org/download.cgi) and add `%MAVEN_HOME%\bin` to your user **PATH**, **or** set a system **`MAVEN_HOME`** variable pointing at the Maven install.
+2. In IntelliJ: **Settings → Build, Execution, Deployment → Build Tools → Maven** — set **Maven home path** to the same install.
+3. Use **JDK 21** for the project SDK.
+4. Open the root **`pom.xml`** as a Maven project; build with **Maven → Lifecycle → verify** (or a terminal where `mvn -version` works).
+5. WildFly smoke tests need **Docker Desktop**; they skip automatically when Docker is unavailable.
+
+If Maven is not on PATH, `mvn verify` still compiles but Maven-dependent tests are **skipped** (not failed).
 
 ## Build
 

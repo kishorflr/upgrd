@@ -2,6 +2,7 @@ package com.upgrd.core.verify;
 
 import com.upgrd.core.model.VerifyReport;
 import com.upgrd.core.model.VerifyReport.WildflySmoke;
+import com.upgrd.core.process.MavenCommand;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,7 +27,7 @@ public final class VerifyEngine {
         Path logFile = reportDir.resolve("last-run.log");
 
         List<String> command = new ArrayList<>();
-        command.add("mvn");
+        command.add(MavenCommand.executable());
         command.add("-f");
         command.add(migratedPom.toString());
         command.add("verify");

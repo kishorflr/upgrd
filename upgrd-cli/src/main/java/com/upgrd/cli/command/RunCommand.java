@@ -51,6 +51,7 @@ public final class RunCommand implements Callable<Integer> {
         try (ReportServer server = new ReportServer(output, port)) {
             server.start();
             System.out.printf("UpGrd audit dashboard running at %s%n", server.baseUrl());
+            System.out.println("  Review tab: approve steps, apply, and build & verify from the browser.");
             System.out.println("  Coverage tab: configure workspace and run log analysis from the browser.");
             System.out.println("  Press Ctrl+C to stop.");
             Thread.currentThread().join();
